@@ -2,7 +2,7 @@ import 'dart:developer' as developer;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:myapp/features/auth/presentation/auth_screen.dart';
-import 'package:myapp/features/home/presentation/home_screen.dart';
+import 'package:myapp/features/shell/presentation/main_screen.dart';
 import 'package:myapp/features/auth/presentation/providers.dart';
 import 'package:myapp/features/auth/presentation/splash_screen.dart';
 import 'package:myapp/features/auth/presentation/email_verification_screen.dart';
@@ -19,7 +19,7 @@ class AuthGate extends ConsumerWidget {
       data: (user) {
         if (user != null) {
           if (user.emailVerified) {
-            return const HomeScreen();
+            return const MainScreen(); // Navigate to the new MainScreen
           } else {
             return const EmailVerificationScreen();
           }
