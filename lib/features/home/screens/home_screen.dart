@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../providers/bottom_nav_provider.dart';
-import '../../create_post/screens/create_post_screen.dart';
 import '../../feed/screens/feed_screen.dart';
 import '../../profile/screens/profile_screen.dart';
 import '../../reels/screens/reels_screen.dart';
@@ -19,7 +18,6 @@ class HomeScreen extends ConsumerWidget {
     final screens = [
       const FeedScreen(),
       const SearchScreen(),
-      const CreatePostScreen(),
       const ReelsScreen(),
       const ProfileScreen(),
     ];

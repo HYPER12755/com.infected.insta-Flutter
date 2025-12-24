@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../providers/bottom_nav_provider.dart';
+import '../../create_post/screens/create_post_screen.dart';
 
 class BottomNavBar extends ConsumerWidget {
   const BottomNavBar({super.key});
@@ -10,9 +11,23 @@ class BottomNavBar extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final selectedIndex = ref.watch(bottomNavProvider);
 
+    void onItemTapped(int index) {
+      if (index == 2) {
+        showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          builder: (context) => const CreatePostScreen(),
+        );
+      } else if (index < 2) {
+        ref.read(bottomNavProvider.notifier).state = index;
+      } else {
+        ref.read(bottomNavProvider.notifier).state = index - 1;
+      }
+    }
+
     return BottomNavigationBar(
       currentIndex: selectedIndex,
-      onTap: (index) => ref.read(bottomNavProvider.notifier).state = index,
+      onTap: onItemTapped,
       type: BottomNavigationBarType.fixed,
       selectedItemColor: Colors.black,
       unselectedItemColor: Colors.grey,

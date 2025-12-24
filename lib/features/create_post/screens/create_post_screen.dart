@@ -1,16 +1,37 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:io';
 
 import '../providers/create_post_provider.dart';
 
-class CreatePostScreen extends ConsumerWidget {
+class CreatePostScreen extends ConsumerStatefulWidget {
   const CreatePostScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final createPostState = ref.watch(createPostProvider);
-    final createPostNotifier = ref.read(createPostProvider.notifier);
+  ConsumerState<CreatePostScreen> createState() => _CreatePostScreenState();
+}
+
+class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
+  final TextEditingController _captionController = TextEditingController();
+
+  @override
+  void dispose() {
+    _captionController.dispose();
+    super.dispose();
+  }
+
+  void _sharePost() async {
+    final createPostNotifier = ref.read(createPostControllerProvider.notifier);
+    await createPostNotifier.createPost(caption: _captionController.text);
+    if (mounted) {
+      Navigator.of(context).pop();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final createPostState = ref.watch(createPostControllerProvider);
+    final createPostNotifier = ref.read(createPostControllerProvider.notifier);
 
     return Scaffold(
       appBar: AppBar(
@@ -21,7 +42,9 @@ class CreatePostScreen extends ConsumerWidget {
         ),
         actions: [
           TextButton(
-            onPressed: createPostState.imageFile != null ? () {} : null,
+            onPressed: createPostNotifier.imageFile != null && !createPostState
+                ? _sharePost
+                : null,
             child: const Text(
               'Share',
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
@@ -34,22 +57,28 @@ class CreatePostScreen extends ConsumerWidget {
           padding: const EdgeInsets.all(16.0),
           child: Column(
             children: [
+              createPostState
+                  ? const LinearProgressIndicator()
+                  : const SizedBox(height: 4), // For the space of the indicator
               GestureDetector(
-                onTap: () => createPostNotifier.pickImage(),
+                onTap: () async {
+                  await createPostNotifier.pickImage();
+                  setState(() {}); // Rebuild to show the image
+                },
                 child: Container(
                   height: 300,
                   width: double.infinity,
                   decoration: BoxDecoration(
                     color: Colors.grey[200],
                     borderRadius: BorderRadius.circular(12),
-                    image: createPostState.imageFile != null
+                    image: createPostNotifier.imageFile != null
                         ? DecorationImage(
-                            image: FileImage(createPostState.imageFile!),
+                            image: FileImage(File(createPostNotifier.imageFile!.path)),
                             fit: BoxFit.cover,
                           )
                         : null,
                   ),
-                  child: createPostState.imageFile == null
+                  child: createPostNotifier.imageFile == null
                       ? Center(
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -70,17 +99,21 @@ class CreatePostScreen extends ConsumerWidget {
                       : null,
                 ),
               ),
-              if (createPostState.imageFile != null)
+              if (createPostNotifier.imageFile != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 8.0),
                   child: TextButton.icon(
-                    onPressed: () => createPostNotifier.clearImage(),
+                    onPressed: () {
+                      createPostNotifier.clearImage();
+                      setState(() {});
+                    },
                     icon: const Icon(Icons.clear, color: Colors.red),
                     label: const Text('Remove Image', style: TextStyle(color: Colors.red)),
                   ),
                 ),
               const SizedBox(height: 24),
               TextField(
+                controller: _captionController,
                 decoration: const InputDecoration(
                   hintText: 'Write a caption...',
                   border: OutlineInputBorder(),

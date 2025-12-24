@@ -1,38 +1,51 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../models/user.dart' as app_user;
 import '../providers/auth_provider.dart';
-import 'signup_screen.dart';
+import '../repositories/user_repository.dart';
 
-class LoginScreen extends ConsumerStatefulWidget {
-  const LoginScreen({super.key});
+class SignUpScreen extends ConsumerStatefulWidget {
+  const SignUpScreen({super.key});
 
   @override
-  ConsumerState<LoginScreen> createState() => _LoginScreenState();
+  ConsumerState<SignUpScreen> createState() => _SignUpScreenState();
 }
 
-class _LoginScreenState extends ConsumerState<LoginScreen> {
+class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _usernameController = TextEditingController();
   bool _isLoading = false;
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _usernameController.dispose();
     super.dispose();
   }
 
-  void _login() async {
+  void _signUp() async {
     setState(() {
       _isLoading = true;
     });
 
     try {
-      await ref.read(authProvider).signInWithEmailAndPassword(
+      final userCredential = await ref.read(authProvider).createUserWithEmailAndPassword(
             email: _emailController.text.trim(),
             password: _passwordController.text.trim(),
           );
+
+      if (userCredential.user != null) {
+        final newUser = app_user.User(
+          id: userCredential.user!.uid,
+          username: _usernameController.text.trim(),
+          email: _emailController.text.trim(),
+        );
+        await ref.read(userRepositoryProvider).createUser(newUser);
+      }
+
       // Navigation to HomeScreen will be handled by the authStateChangesProvider listener
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -53,6 +66,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: const Text('Sign Up'),
+      ),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(16.0),
@@ -74,6 +90,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ),
               const SizedBox(height: 16),
               TextField(
+                controller: _usernameController,
+                decoration: const InputDecoration(
+                  labelText: 'Username',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
                 controller: _passwordController,
                 obscureText: true,
                 decoration: const InputDecoration(
@@ -85,23 +109,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               _isLoading
                   ? const CircularProgressIndicator()
                   : ElevatedButton(
-                      onPressed: _login,
+                      onPressed: _signUp,
                       style: ElevatedButton.styleFrom(
                         minimumSize: const Size(double.infinity, 50),
                       ),
-                      child: const Text('Log In'),
+                      child: const Text('Sign Up'),
                     ),
-              const SizedBox(height: 24),
-              TextButton(
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (BuildContext context) => const SignUpScreen(),
-                    ),
-                  );
-                },
-                child: const Text("Don't have an account? Sign up."),
-              ),
             ],
           ),
         ),

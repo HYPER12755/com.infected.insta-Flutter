@@ -1,42 +1,47 @@
-import 'dart:io';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
-class CreatePostState {
-  final File? imageFile;
-  final bool isLoading;
+import '../repositories/create_post_repository.dart';
 
-  CreatePostState({this.imageFile, this.isLoading = false});
+final createPostControllerProvider = StateNotifierProvider<CreatePostController, bool>((ref) {
+  return CreatePostController(ref);
+});
 
-  CreatePostState copyWith({
-    File? imageFile,
-    bool? isLoading,
-  }) {
-    return CreatePostState(
-      imageFile: imageFile ?? this.imageFile,
-      isLoading: isLoading ?? this.isLoading,
-    );
+class CreatePostController extends StateNotifier<bool> {
+  final Ref _ref;
+
+  CreatePostController(this._ref) : super(false);
+
+XFile? _imageFile;
+
+  XFile? get imageFile => _imageFile;
+
+  Future<void> createPost({
+    required String caption,
+  }) async {
+    if (_imageFile == null) {
+      return;
+    }
+
+    state = true;
+    try {
+      await _ref.read(createPostRepositoryProvider).createPost(
+            caption: caption,
+            imageFile: _imageFile!,
+          );
+    } finally {
+      state = false;
+    }
   }
-}
-
-class CreatePostNotifier extends StateNotifier<CreatePostState> {
-  CreatePostNotifier() : super(CreatePostState());
 
   Future<void> pickImage() async {
-    final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
-
+    final pickedFile = await ImagePicker().pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
-      state = state.copyWith(imageFile: File(pickedFile.path));
+      _imageFile = pickedFile;
     }
   }
 
   void clearImage() {
-    state = state.copyWith(imageFile: null);
+    _imageFile = null;
   }
 }
-
-final createPostProvider = StateNotifierProvider<CreatePostNotifier, CreatePostState>((ref) {
-  return CreatePostNotifier();
-});

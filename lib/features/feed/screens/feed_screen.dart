@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../providers/feed_provider.dart';
+import '../../../features/posts/providers/posts_provider.dart';
 import '../widgets/post_card.dart';
 
 class FeedScreen extends ConsumerWidget {
@@ -9,11 +9,14 @@ class FeedScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final feed = ref.watch(feedProvider);
+    final posts = ref.watch(postsProvider);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Instagram'),
+        title: const Text(
+          'Instagram',
+          style: TextStyle(fontFamily: 'Billabong', fontSize: 32),
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.add_box_outlined),
@@ -29,7 +32,7 @@ class FeedScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: feed.when(
+      body: posts.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, stackTrace) => Center(child: Text(error.toString())),
         data: (posts) {
