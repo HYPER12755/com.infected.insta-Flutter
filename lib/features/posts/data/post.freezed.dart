@@ -1,5 +1,5 @@
-// GENERATED CODE - DO NOT MODIFY BY HAND
 // coverage:ignore-file
+// GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
@@ -9,281 +9,247 @@ part of 'post.dart';
 // FreezedGenerator
 // **************************************************************************
 
-// dart format off
 T _$identity<T>(T value) => value;
+
+final _privateConstructorUsedError = UnsupportedError(
+  'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models',
+);
+
+Post _$PostFromJson(Map<String, dynamic> json) {
+  return _Post.fromJson(json);
+}
 
 /// @nodoc
 mixin _$Post {
-
- String get id; String get userId; String get imageUrl; String get caption; DateTime get createdAt;
-/// Create a copy of Post
-/// with the given fields replaced by the non-null parameter values.
-@JsonKey(includeFromJson: false, includeToJson: false)
-@pragma('vm:prefer-inline')
-$PostCopyWith<Post> get copyWith => _$PostCopyWithImpl<Post>(this as Post, _$identity);
+  String get id => throw _privateConstructorUsedError;
+  String get userId => throw _privateConstructorUsedError;
+  String get imageUrl => throw _privateConstructorUsedError;
+  String get caption => throw _privateConstructorUsedError;
+  DateTime get createdAt => throw _privateConstructorUsedError;
 
   /// Serializes this Post to a JSON map.
-  Map<String, dynamic> toJson();
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 
-
-@override
-bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is Post&&(identical(other.id, id) || other.id == id)&&(identical(other.userId, userId) || other.userId == userId)&&(identical(other.imageUrl, imageUrl) || other.imageUrl == imageUrl)&&(identical(other.caption, caption) || other.caption == caption)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt));
-}
-
-@JsonKey(includeFromJson: false, includeToJson: false)
-@override
-int get hashCode => Object.hash(runtimeType,id,userId,imageUrl,caption,createdAt);
-
-@override
-String toString() {
-  return 'Post(id: $id, userId: $userId, imageUrl: $imageUrl, caption: $caption, createdAt: $createdAt)';
-}
-
-
+  /// Create a copy of Post
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  $PostCopyWith<Post> get copyWith => throw _privateConstructorUsedError;
 }
 
 /// @nodoc
-abstract mixin class $PostCopyWith<$Res>  {
-  factory $PostCopyWith(Post value, $Res Function(Post) _then) = _$PostCopyWithImpl;
-@useResult
-$Res call({
- String id, String userId, String imageUrl, String caption, DateTime createdAt
-});
-
-
-
-
+abstract class $PostCopyWith<$Res> {
+  factory $PostCopyWith(Post value, $Res Function(Post) then) =
+      _$PostCopyWithImpl<$Res, Post>;
+  @useResult
+  $Res call({
+    String id,
+    String userId,
+    String imageUrl,
+    String caption,
+    DateTime createdAt,
+  });
 }
+
 /// @nodoc
-class _$PostCopyWithImpl<$Res>
+class _$PostCopyWithImpl<$Res, $Val extends Post>
     implements $PostCopyWith<$Res> {
-  _$PostCopyWithImpl(this._self, this._then);
+  _$PostCopyWithImpl(this._value, this._then);
 
-  final Post _self;
-  final $Res Function(Post) _then;
+  // ignore: unused_field
+  final $Val _value;
+  // ignore: unused_field
+  final $Res Function($Val) _then;
 
-/// Create a copy of Post
-/// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? userId = null,Object? imageUrl = null,Object? caption = null,Object? createdAt = null,}) {
-  return _then(_self.copyWith(
-id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
-as String,userId: null == userId ? _self.userId : userId // ignore: cast_nullable_to_non_nullable
-as String,imageUrl: null == imageUrl ? _self.imageUrl : imageUrl // ignore: cast_nullable_to_non_nullable
-as String,caption: null == caption ? _self.caption : caption // ignore: cast_nullable_to_non_nullable
-as String,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
-as DateTime,
-  ));
+  /// Create a copy of Post
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? id = null,
+    Object? userId = null,
+    Object? imageUrl = null,
+    Object? caption = null,
+    Object? createdAt = null,
+  }) {
+    return _then(
+      _value.copyWith(
+            id: null == id
+                ? _value.id
+                : id // ignore: cast_nullable_to_non_nullable
+                      as String,
+            userId: null == userId
+                ? _value.userId
+                : userId // ignore: cast_nullable_to_non_nullable
+                      as String,
+            imageUrl: null == imageUrl
+                ? _value.imageUrl
+                : imageUrl // ignore: cast_nullable_to_non_nullable
+                      as String,
+            caption: null == caption
+                ? _value.caption
+                : caption // ignore: cast_nullable_to_non_nullable
+                      as String,
+            createdAt: null == createdAt
+                ? _value.createdAt
+                : createdAt // ignore: cast_nullable_to_non_nullable
+                      as DateTime,
+          )
+          as $Val,
+    );
+  }
 }
 
+/// @nodoc
+abstract class _$$PostImplCopyWith<$Res> implements $PostCopyWith<$Res> {
+  factory _$$PostImplCopyWith(
+    _$PostImpl value,
+    $Res Function(_$PostImpl) then,
+  ) = __$$PostImplCopyWithImpl<$Res>;
+  @override
+  @useResult
+  $Res call({
+    String id,
+    String userId,
+    String imageUrl,
+    String caption,
+    DateTime createdAt,
+  });
 }
 
+/// @nodoc
+class __$$PostImplCopyWithImpl<$Res>
+    extends _$PostCopyWithImpl<$Res, _$PostImpl>
+    implements _$$PostImplCopyWith<$Res> {
+  __$$PostImplCopyWithImpl(_$PostImpl _value, $Res Function(_$PostImpl) _then)
+    : super(_value, _then);
 
-/// Adds pattern-matching-related methods to [Post].
-extension PostPatterns on Post {
-/// A variant of `map` that fallback to returning `orElse`.
-///
-/// It is equivalent to doing:
-/// ```dart
-/// switch (sealedClass) {
-///   case final Subclass value:
-///     return ...;
-///   case _:
-///     return orElse();
-/// }
-/// ```
-
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>(TResult Function( _Post value)?  $default,{required TResult orElse(),}){
-final _that = this;
-switch (_that) {
-case _Post() when $default != null:
-return $default(_that);case _:
-  return orElse();
-
-}
-}
-/// A `switch`-like method, using callbacks.
-///
-/// Callbacks receives the raw object, upcasted.
-/// It is equivalent to doing:
-/// ```dart
-/// switch (sealedClass) {
-///   case final Subclass value:
-///     return ...;
-///   case final Subclass2 value:
-///     return ...;
-/// }
-/// ```
-
-@optionalTypeArgs TResult map<TResult extends Object?>(TResult Function( _Post value)  $default,){
-final _that = this;
-switch (_that) {
-case _Post():
-return $default(_that);case _:
-  throw StateError('Unexpected subclass');
-
-}
-}
-/// A variant of `map` that fallback to returning `null`.
-///
-/// It is equivalent to doing:
-/// ```dart
-/// switch (sealedClass) {
-///   case final Subclass value:
-///     return ...;
-///   case _:
-///     return null;
-/// }
-/// ```
-
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>(TResult? Function( _Post value)?  $default,){
-final _that = this;
-switch (_that) {
-case _Post() when $default != null:
-return $default(_that);case _:
-  return null;
-
-}
-}
-/// A variant of `when` that fallback to an `orElse` callback.
-///
-/// It is equivalent to doing:
-/// ```dart
-/// switch (sealedClass) {
-///   case Subclass(:final field):
-///     return ...;
-///   case _:
-///     return orElse();
-/// }
-/// ```
-
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String userId,  String imageUrl,  String caption,  DateTime createdAt)?  $default,{required TResult orElse(),}) {final _that = this;
-switch (_that) {
-case _Post() when $default != null:
-return $default(_that.id,_that.userId,_that.imageUrl,_that.caption,_that.createdAt);case _:
-  return orElse();
-
-}
-}
-/// A `switch`-like method, using callbacks.
-///
-/// As opposed to `map`, this offers destructuring.
-/// It is equivalent to doing:
-/// ```dart
-/// switch (sealedClass) {
-///   case Subclass(:final field):
-///     return ...;
-///   case Subclass2(:final field2):
-///     return ...;
-/// }
-/// ```
-
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String userId,  String imageUrl,  String caption,  DateTime createdAt)  $default,) {final _that = this;
-switch (_that) {
-case _Post():
-return $default(_that.id,_that.userId,_that.imageUrl,_that.caption,_that.createdAt);case _:
-  throw StateError('Unexpected subclass');
-
-}
-}
-/// A variant of `when` that fallback to returning `null`
-///
-/// It is equivalent to doing:
-/// ```dart
-/// switch (sealedClass) {
-///   case Subclass(:final field):
-///     return ...;
-///   case _:
-///     return null;
-/// }
-/// ```
-
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String userId,  String imageUrl,  String caption,  DateTime createdAt)?  $default,) {final _that = this;
-switch (_that) {
-case _Post() when $default != null:
-return $default(_that.id,_that.userId,_that.imageUrl,_that.caption,_that.createdAt);case _:
-  return null;
-
-}
-}
-
+  /// Create a copy of Post
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? id = null,
+    Object? userId = null,
+    Object? imageUrl = null,
+    Object? caption = null,
+    Object? createdAt = null,
+  }) {
+    return _then(
+      _$PostImpl(
+        id: null == id
+            ? _value.id
+            : id // ignore: cast_nullable_to_non_nullable
+                  as String,
+        userId: null == userId
+            ? _value.userId
+            : userId // ignore: cast_nullable_to_non_nullable
+                  as String,
+        imageUrl: null == imageUrl
+            ? _value.imageUrl
+            : imageUrl // ignore: cast_nullable_to_non_nullable
+                  as String,
+        caption: null == caption
+            ? _value.caption
+            : caption // ignore: cast_nullable_to_non_nullable
+                  as String,
+        createdAt: null == createdAt
+            ? _value.createdAt
+            : createdAt // ignore: cast_nullable_to_non_nullable
+                  as DateTime,
+      ),
+    );
+  }
 }
 
 /// @nodoc
 @JsonSerializable()
+class _$PostImpl implements _Post {
+  const _$PostImpl({
+    required this.id,
+    required this.userId,
+    required this.imageUrl,
+    required this.caption,
+    required this.createdAt,
+  });
 
-class _Post implements Post {
-  const _Post({required this.id, required this.userId, required this.imageUrl, required this.caption, required this.createdAt});
-  factory _Post.fromJson(Map<String, dynamic> json) => _$PostFromJson(json);
+  factory _$PostImpl.fromJson(Map<String, dynamic> json) =>
+      _$$PostImplFromJson(json);
 
-@override final  String id;
-@override final  String userId;
-@override final  String imageUrl;
-@override final  String caption;
-@override final  DateTime createdAt;
+  @override
+  final String id;
+  @override
+  final String userId;
+  @override
+  final String imageUrl;
+  @override
+  final String caption;
+  @override
+  final DateTime createdAt;
 
-/// Create a copy of Post
-/// with the given fields replaced by the non-null parameter values.
-@override @JsonKey(includeFromJson: false, includeToJson: false)
-@pragma('vm:prefer-inline')
-_$PostCopyWith<_Post> get copyWith => __$PostCopyWithImpl<_Post>(this, _$identity);
+  @override
+  String toString() {
+    return 'Post(id: $id, userId: $userId, imageUrl: $imageUrl, caption: $caption, createdAt: $createdAt)';
+  }
 
-@override
-Map<String, dynamic> toJson() {
-  return _$PostToJson(this, );
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$PostImpl &&
+            (identical(other.id, id) || other.id == id) &&
+            (identical(other.userId, userId) || other.userId == userId) &&
+            (identical(other.imageUrl, imageUrl) ||
+                other.imageUrl == imageUrl) &&
+            (identical(other.caption, caption) || other.caption == caption) &&
+            (identical(other.createdAt, createdAt) ||
+                other.createdAt == createdAt));
+  }
+
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  int get hashCode =>
+      Object.hash(runtimeType, id, userId, imageUrl, caption, createdAt);
+
+  /// Create a copy of Post
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$PostImplCopyWith<_$PostImpl> get copyWith =>
+      __$$PostImplCopyWithImpl<_$PostImpl>(this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$PostImplToJson(this);
+  }
 }
 
-@override
-bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Post&&(identical(other.id, id) || other.id == id)&&(identical(other.userId, userId) || other.userId == userId)&&(identical(other.imageUrl, imageUrl) || other.imageUrl == imageUrl)&&(identical(other.caption, caption) || other.caption == caption)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt));
+abstract class _Post implements Post {
+  const factory _Post({
+    required final String id,
+    required final String userId,
+    required final String imageUrl,
+    required final String caption,
+    required final DateTime createdAt,
+  }) = _$PostImpl;
+
+  factory _Post.fromJson(Map<String, dynamic> json) = _$PostImpl.fromJson;
+
+  @override
+  String get id;
+  @override
+  String get userId;
+  @override
+  String get imageUrl;
+  @override
+  String get caption;
+  @override
+  DateTime get createdAt;
+
+  /// Create a copy of Post
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$PostImplCopyWith<_$PostImpl> get copyWith =>
+      throw _privateConstructorUsedError;
 }
-
-@JsonKey(includeFromJson: false, includeToJson: false)
-@override
-int get hashCode => Object.hash(runtimeType,id,userId,imageUrl,caption,createdAt);
-
-@override
-String toString() {
-  return 'Post(id: $id, userId: $userId, imageUrl: $imageUrl, caption: $caption, createdAt: $createdAt)';
-}
-
-
-}
-
-/// @nodoc
-abstract mixin class _$PostCopyWith<$Res> implements $PostCopyWith<$Res> {
-  factory _$PostCopyWith(_Post value, $Res Function(_Post) _then) = __$PostCopyWithImpl;
-@override @useResult
-$Res call({
- String id, String userId, String imageUrl, String caption, DateTime createdAt
-});
-
-
-
-
-}
-/// @nodoc
-class __$PostCopyWithImpl<$Res>
-    implements _$PostCopyWith<$Res> {
-  __$PostCopyWithImpl(this._self, this._then);
-
-  final _Post _self;
-  final $Res Function(_Post) _then;
-
-/// Create a copy of Post
-/// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? userId = null,Object? imageUrl = null,Object? caption = null,Object? createdAt = null,}) {
-  return _then(_Post(
-id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
-as String,userId: null == userId ? _self.userId : userId // ignore: cast_nullable_to_non_nullable
-as String,imageUrl: null == imageUrl ? _self.imageUrl : imageUrl // ignore: cast_nullable_to_non_nullable
-as String,caption: null == caption ? _self.caption : caption // ignore: cast_nullable_to_non_nullable
-as String,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
-as DateTime,
-  ));
-}
-
-
-}
-
-// dart format on

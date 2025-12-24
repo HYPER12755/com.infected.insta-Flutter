@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../../auth/screens/login_screen.dart';
+import '../../auth/presentation/login_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -19,7 +19,7 @@ class _SplashScreenState extends State<SplashScreen> {
       const Duration(seconds: 3),
       () => Navigator.of(context).pushReplacement(
         MaterialPageRoute(
-          builder: (BuildContext context) => LoginScreen(),
+          builder: (BuildContext context) => const LoginScreen(),
         ),
       ),
     );

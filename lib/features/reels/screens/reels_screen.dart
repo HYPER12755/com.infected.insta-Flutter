@@ -100,9 +100,9 @@ class _ReelPlayerState extends State<ReelPlayer> {
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [
-                Colors.black.withOpacity(0.3),
+                Colors.black.withAlpha(76),
                 Colors.transparent,
-                Colors.black.withOpacity(0.5),
+                Colors.black.withAlpha(127),
               ],
               stops: const [0.0, 0.4, 0.9],
             ),

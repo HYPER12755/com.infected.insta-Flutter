@@ -16,6 +16,14 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   final _usernameController = TextEditingController();
 
   @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    _usernameController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
@@ -47,18 +55,20 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: () async {
+                final navigator = Navigator.of(context);
                 await ref.read(authRepositoryProvider).signUpWithEmailAndPassword(
                       email: _emailController.text,
                       password: _passwordController.text,
                       username: _usernameController.text,
                     );
                 await ref.read(authRepositoryProvider).sendEmailVerification();
-                if (!mounted) return;
-                Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(
-                    builder: (context) => const EmailVerificationScreen(),
-                  ),
-                );
+                if (mounted) {
+                  navigator.pushReplacement(
+                    MaterialPageRoute(
+                      builder: (context) => const EmailVerificationScreen(),
+                    ),
+                  );
+                }
               },
               child: const Text('Sign Up'),
             ),
