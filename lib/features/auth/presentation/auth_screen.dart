@@ -1,6 +1,4 @@
-
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:myapp/features/auth/presentation/login_form.dart';
 import 'package:myapp/features/auth/presentation/signup_form.dart';
 
@@ -12,61 +10,70 @@ class AuthScreen extends StatefulWidget {
 }
 
 class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+  late AnimationController _controller;
+  late Animation<double> _animation;
+  bool _isShowingLogin = true;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    );
+    _animation = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeInOut,
+    );
+    _controller.forward();
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
+    _controller.dispose();
     super.dispose();
+  }
+
+  void _toggleForm() {
+    setState(() {
+      _isShowingLogin = !_isShowingLogin;
+      if (_isShowingLogin) {
+        _controller.forward();
+      } else {
+        _controller.reverse();
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: Colors.black,
-          labelColor: Colors.black,
-          unselectedLabelColor: Colors.grey,
-          tabs: const [
-            Tab(text: 'LOG IN'),
-            Tab(text: 'SIGN UP'),
-          ],
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Colors.blue.shade900,
+              Colors.purple.shade900,
+            ],
+          ),
         ),
-      ),
-      body: Center(
-        child: SingleChildScrollView(
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 32.0),
+        child: Center(
+          child: SingleChildScrollView(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const SizedBox(height: 64),
-                SvgPicture.asset(
-                  'assets/images/instagram_logo.svg',
-                  height: 64,
-                  colorFilter: const ColorFilter.mode(Colors.black, BlendMode.srcIn)
+                FadeTransition(
+                  opacity: _animation,
+                  child: _isShowingLogin ? const LoginForm() : const SignupForm(),
                 ),
-                const SizedBox(height: 64),
-                SizedBox(
-                  height: 400, // Adjust height as needed
-                  child: TabBarView(
-                    controller: _tabController,
-                    children: const [
-                      LoginForm(),
-                      SignupForm(),
-                    ],
+                const SizedBox(height: 20),
+                TextButton(
+                  onPressed: _toggleForm,
+                  child: Text(
+                    _isShowingLogin ? 'Create an account' : 'I already have an account',
+                    style: const TextStyle(color: Colors.white),
                   ),
                 ),
               ],
