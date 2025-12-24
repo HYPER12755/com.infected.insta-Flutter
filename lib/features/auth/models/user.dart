@@ -25,7 +25,7 @@ class User {
       id: doc.id,
       username: data['username'] ?? '',
       email: data['email'] ?? '',
-      photoUrl: data['photoUrl',
+      photoUrl: data['photoUrl'],
       bio: data['bio'],
       followers: List<String>.from(data['followers'] ?? []),
       following: List<String>.from(data['following'] ?? []),

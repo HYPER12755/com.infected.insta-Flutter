@@ -1,6 +1,6 @@
 
 import 'package:flutter/material.dart';
-import 'package:com_infected_insta/features/main/screens/main_screen.dart';
+import 'package:myapp/features/main/screens/main_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});

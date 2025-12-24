@@ -23,6 +23,7 @@ class _EmailVerificationScreenState extends ConsumerState<EmailVerificationScree
       final isEmailVerified = await ref.read(authRepositoryProvider).isEmailVerified();
       if (isEmailVerified) {
         timer.cancel();
+        if (!mounted) return;
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
             builder: (context) => const HomeScreen(),
