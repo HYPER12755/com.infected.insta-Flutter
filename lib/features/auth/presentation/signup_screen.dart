@@ -53,6 +53,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                       username: _usernameController.text,
                     );
                 await ref.read(authRepositoryProvider).sendEmailVerification();
+                if (!mounted) return;
                 Navigator.of(context).pushReplacement(
                   MaterialPageRoute(
                     builder: (context) => const EmailVerificationScreen(),
