@@ -1,7 +1,7 @@
 import 'dart:developer' as developer;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:myapp/features/auth/presentation/login_screen.dart';
+import 'package:myapp/features/auth/presentation/auth_screen.dart';
 import 'package:myapp/features/home/presentation/home_screen.dart';
 import 'package:myapp/features/auth/presentation/providers.dart';
 import 'package:myapp/features/auth/presentation/splash_screen.dart';
@@ -24,7 +24,7 @@ class AuthGate extends ConsumerWidget {
             return const EmailVerificationScreen();
           }
         }
-        return const LoginScreen();
+        return const AuthScreen();
       },
       loading: () => const SplashScreen(),
       error: (error, stackTrace) {
