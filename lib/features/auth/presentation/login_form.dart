@@ -85,10 +85,25 @@ class _LoginFormState extends ConsumerState<LoginForm> with SingleTickerProvider
               onPressed: () {
                 ref.read(authRepositoryProvider).signInWithGoogle();
               },
-              icon: Image.asset('assets/images/google_logo.png', height: 24),
+              icon: Image.network('https://www.google.com/images/branding/googlelogo/1x/googlelogo_light_color_24dp.png', height: 24),
               label: const Text('Sign in with Google'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 15),
+              ),
+            ),
+            const SizedBox(height: 10),
+            ElevatedButton.icon(
+              onPressed: () {
+                ref.read(authRepositoryProvider).signInWithGitHub();
+              },
+              icon: Image.network('https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png', height: 24),
+              label: const Text('Sign in with Github'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.black,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
                 ),

@@ -79,6 +79,11 @@ class AuthRepository {
     await _auth.signInWithCredential(credential);
   }
 
+  Future<void> signInWithGitHub() async {
+    final GithubAuthProvider githubProvider = GithubAuthProvider();
+    await _auth.signInWithProvider(githubProvider);
+  }
+
   Future<void> signOut() async {
     await GoogleSignIn().signOut();
     await _auth.signOut();
