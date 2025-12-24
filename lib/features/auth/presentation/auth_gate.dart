@@ -1,11 +1,8 @@
-import 'dart:developer' as developer;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:myapp/features/auth/presentation/auth_screen.dart';
-import 'package:myapp/features/shell/presentation/main_screen.dart';
 import 'package:myapp/features/auth/presentation/providers.dart';
-import 'package:myapp/features/auth/presentation/splash_screen.dart';
-import 'package:myapp/features/auth/presentation/email_verification_screen.dart';
+import 'package:myapp/features/home/home_page.dart';
 
 class AuthGate extends ConsumerWidget {
   const AuthGate({super.key});
@@ -13,28 +10,11 @@ class AuthGate extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authStateChangesProvider);
-    developer.log('Auth State: $authState', name: 'AuthGate');
 
     return authState.when(
-      data: (user) {
-        if (user != null) {
-          if (user.emailVerified) {
-            return const MainScreen(); // Navigate to the new MainScreen
-          } else {
-            return const EmailVerificationScreen();
-          }
-        }
-        return const AuthScreen();
-      },
-      loading: () => const SplashScreen(),
-      error: (error, stackTrace) {
-        developer.log('Auth Error', name: 'AuthGate', error: error, stackTrace: stackTrace);
-        return Scaffold(
-          body: Center(
-            child: Text('Error: $error'),
-          ),
-        );
-      },
+      data: (user) => user != null ? const HomePage() : const AuthScreen(),
+      loading: () => const CircularProgressIndicator(),
+      error: (error, stack) => Center(child: Text(error.toString())),
     );
   }
 }
