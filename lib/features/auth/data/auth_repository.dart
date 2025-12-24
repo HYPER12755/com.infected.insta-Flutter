@@ -64,13 +64,13 @@ class AuthRepository {
   }
 
   Future<void> signInWithGoogle() async {
-    final GoogleSignInAccount? googleUser = await GoogleSignIn.instance.signIn();
+    final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
     if (googleUser == null) {
       // The user canceled the sign-in
       return;
     }
 
-    final GoogleSignInAuthentication googleAuth = googleUser.authentication;
+    final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
     final OAuthCredential credential = GoogleAuthProvider.credential(
       accessToken: googleAuth.accessToken,
       idToken: googleAuth.idToken,
@@ -80,7 +80,7 @@ class AuthRepository {
   }
 
   Future<void> signOut() async {
-    await GoogleSignIn.instance.signOut();
+    await GoogleSignIn().signOut();
     await _auth.signOut();
   }
 }

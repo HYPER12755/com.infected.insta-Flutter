@@ -48,6 +48,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
 
       // Navigation to HomeScreen will be handled by the authStateChangesProvider listener
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(e.toString()),

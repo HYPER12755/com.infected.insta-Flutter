@@ -35,6 +35,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           );
       // Navigation to HomeScreen will be handled by the authStateChangesProvider listener
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(e.toString()),
