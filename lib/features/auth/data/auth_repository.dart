@@ -25,6 +25,7 @@ class AuthRepository {
     required String email,
     required String password,
     required String username,
+    required String fullName,
   }) async {
     final credentials = await _auth.createUserWithEmailAndPassword(
       email: email,
@@ -33,6 +34,7 @@ class AuthRepository {
     await _firestore.collection('users').doc(credentials.user!.uid).set({
       'username': username,
       'email': email,
+      'fullName': fullName,
       'followers': [],
       'following': [],
       'posts': 0,

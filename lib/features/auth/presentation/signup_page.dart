@@ -34,6 +34,7 @@ class _SignupPageState extends ConsumerState<SignupPage> {
             email: _emailController.text,
             password: _passwordController.text,
             username: _usernameController.text,
+            fullName: _fullNameController.text, // Pass the full name
           );
     }
   }
@@ -92,7 +93,7 @@ class _SignupPageState extends ConsumerState<SignupPage> {
                         return 'Username must be at least 3 characters.';
                       }
                       if (!RegExp(r'^[a-z0-9_.]+$').hasMatch(value)) {
-                        return 'Invalid characters used.';
+                        return 'Username can only contain lowercase letters, numbers, periods, and underscores.';
                       }
                       return null;
                     },
