@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
@@ -16,6 +17,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _showPassword = false;
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -26,10 +28,22 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
   void _submit() async {
     if (_formKey.currentState!.validate()) {
-      await ref.read(authRepositoryProvider).signInWithEmailAndPassword(
-            _emailController.text,
-            _passwordController.text,
-          );
+      setState(() => _isLoading = true);
+      try {
+        await ref.read(authRepositoryProvider).signInWithEmailAndPassword(
+              _emailController.text,
+              _passwordController.text,
+            );
+        // Navigation is handled by the router's redirect logic
+      } on FirebaseAuthException catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message ?? 'Login failed.')),
+        );
+      } finally {
+        if (mounted) {
+          setState(() => _isLoading = false);
+        }
+      }
     }
   }
 
@@ -69,6 +83,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   controller: _emailController,
                   decoration: const InputDecoration(hintText: 'name@example.com'),
                   validator: (value) => value!.isEmpty ? 'Please enter an email' : null,
+                  enabled: !_isLoading,
                 ),
                 const SizedBox(height: 20),
                 Row(
@@ -96,14 +111,15 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     ),
                   ),
                   validator: (value) => value!.length < 6 ? 'Password must be at least 6 characters' : null,
+                  enabled: !_isLoading,
                 ),
               ],
             ),
           ),
           const SizedBox(height: 30),
           ElevatedButton(
-            onPressed: _submit,
-            child: const Text('Login'),
+            onPressed: _isLoading ? null : _submit,
+            child: _isLoading ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Login'),
           ),
           const SizedBox(height: 30),
 
@@ -125,7 +141,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
             children: [
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: () => ref.read(authRepositoryProvider).signInWithGoogle(),
+                  onPressed: _isLoading ? null : () => ref.read(authRepositoryProvider).signInWithGoogle(),
                   icon: const FaIcon(FontAwesomeIcons.google, size: 18),
                   label: const Text('Google'),
                 ),
@@ -133,7 +149,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
               const SizedBox(width: 20),
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: () => ref.read(authRepositoryProvider).signInWithGitHub(),
+                  onPressed: _isLoading ? null : () => ref.read(authRepositoryProvider).signInWithGitHub(),
                   icon: const FaIcon(FontAwesomeIcons.github, size: 18),
                   label: const Text('GitHub'),
                 ),
@@ -148,7 +164,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
             children: [
               Text("Don't have an account? ", style: Theme.of(context).textTheme.bodyMedium),
               GestureDetector(
-                onTap: widget.showSignupPage,
+                onTap: _isLoading ? null : widget.showSignupPage,
                 child: Text(
                   'Sign up',
                   style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(context).primaryColor),

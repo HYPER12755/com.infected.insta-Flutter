@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
@@ -18,6 +19,7 @@ class _SignupPageState extends ConsumerState<SignupPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _showPassword = false;
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -30,12 +32,24 @@ class _SignupPageState extends ConsumerState<SignupPage> {
 
   void _submit() async {
     if (_formKey.currentState!.validate()) {
-      await ref.read(authRepositoryProvider).signUpWithEmailAndPassword(
-            email: _emailController.text,
-            password: _passwordController.text,
-            username: _usernameController.text,
-            fullName: _fullNameController.text,
-          );
+      setState(() => _isLoading = true);
+      try {
+        await ref.read(authRepositoryProvider).signUpWithEmailAndPassword(
+              email: _emailController.text,
+              password: _passwordController.text,
+              username: _usernameController.text,
+              fullName: _fullNameController.text,
+            );
+        // Navigation is handled by the router's redirect logic
+      } on FirebaseAuthException catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message ?? 'Signup failed.')),
+        );
+      } finally {
+        if (mounted) {
+          setState(() => _isLoading = false);
+        }
+      }
     }
   }
 
@@ -75,6 +89,7 @@ class _SignupPageState extends ConsumerState<SignupPage> {
                   controller: _fullNameController,
                   decoration: const InputDecoration(hintText: 'John Doe'),
                   validator: (value) => value!.isEmpty ? 'Please enter your full name' : null,
+                  enabled: !_isLoading,
                 ),
                 const SizedBox(height: 20),
                 Text('Username', style: Theme.of(context).textTheme.labelLarge),
@@ -83,6 +98,7 @@ class _SignupPageState extends ConsumerState<SignupPage> {
                   controller: _usernameController,
                   decoration: const InputDecoration(hintText: 'john.doe'),
                   validator: (value) => value!.isEmpty ? 'Please enter a username' : null,
+                  enabled: !_isLoading,
                 ),
                 const SizedBox(height: 20),
                 Text('Email', style: Theme.of(context).textTheme.labelLarge),
@@ -91,6 +107,7 @@ class _SignupPageState extends ConsumerState<SignupPage> {
                   controller: _emailController,
                   decoration: const InputDecoration(hintText: 'name@example.com'),
                   validator: (value) => value!.isEmpty ? 'Please enter an email' : null,
+                  enabled: !_isLoading,
                 ),
                 const SizedBox(height: 20),
                 Text('Password', style: Theme.of(context).textTheme.labelLarge),
@@ -106,14 +123,15 @@ class _SignupPageState extends ConsumerState<SignupPage> {
                     ),
                   ),
                   validator: (value) => value!.length < 6 ? 'Password must be at least 6 characters' : null,
+                  enabled: !_isLoading,
                 ),
               ],
             ),
           ),
           const SizedBox(height: 30),
           ElevatedButton(
-            onPressed: _submit,
-            child: const Text('Create Account'),
+            onPressed: _isLoading ? null : _submit,
+            child: _isLoading ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Create Account'),
           ),
           const SizedBox(height: 30),
 
@@ -135,7 +153,7 @@ class _SignupPageState extends ConsumerState<SignupPage> {
             children: [
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: () => ref.read(authRepositoryProvider).signInWithGoogle(),
+                  onPressed: _isLoading ? null : () => ref.read(authRepositoryProvider).signInWithGoogle(),
                   icon: const FaIcon(FontAwesomeIcons.google, size: 18),
                   label: const Text('Google'),
                 ),
@@ -143,7 +161,7 @@ class _SignupPageState extends ConsumerState<SignupPage> {
               const SizedBox(width: 20),
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: () => ref.read(authRepositoryProvider).signInWithGitHub(),
+                  onPressed: _isLoading ? null : () => ref.read(authRepositoryProvider).signInWithGitHub(),
                   icon: const FaIcon(FontAwesomeIcons.github, size: 18),
                   label: const Text('GitHub'),
                 ),
@@ -158,7 +176,7 @@ class _SignupPageState extends ConsumerState<SignupPage> {
             children: [
               Text("Already have an account? ", style: Theme.of(context).textTheme.bodyMedium),
               GestureDetector(
-                onTap: widget.showLoginPage,
+                onTap: _isLoading ? null : widget.showLoginPage,
                 child: Text(
                   'Login',
                   style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(context).primaryColor),
