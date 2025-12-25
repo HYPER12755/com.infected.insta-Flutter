@@ -28,9 +28,9 @@ class _SignupPageState extends ConsumerState<SignupPage> {
     super.dispose();
   }
 
-  void _submit() {
+  void _submit() async {
     if (_formKey.currentState!.validate()) {
-      ref.read(authRepositoryProvider).signUpWithEmailAndPassword(
+      await ref.read(authRepositoryProvider).signUpWithEmailAndPassword(
             email: _emailController.text,
             password: _passwordController.text,
             username: _usernameController.text,

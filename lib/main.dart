@@ -2,8 +2,8 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:myapp/router.dart';
 
-import 'features/auth/presentation/auth_gate.dart';
 import 'firebase_options.dart';
 
 void main() async {
@@ -14,11 +14,12 @@ void main() async {
   runApp(const ProviderScope(child: MyApp()));
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends ConsumerWidget {
   const MyApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final router = ref.watch(routerProvider);
     const primaryColor = Color(0xFFC039FF); // Vibrant Purple
     const backgroundColor = Color(0xFF121212); // Deep Black
     const surfaceColor = Color(0xFF1E1E1E); // Slightly Lighter Black for surfaces
@@ -84,10 +85,10 @@ class MyApp extends StatelessWidget {
       ),
     );
 
-    return MaterialApp(
+    return MaterialApp.router(
       title: 'Auth Screen',
       theme: darkTheme,
-      home: const AuthGate(),
+      routerConfig: router,
     );
   }
 }
