@@ -2,7 +2,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:myapp/features/home/presentation/bottom_nav.dart';
+import 'package:myapp/router.dart';
 
 import 'firebase_options.dart';
 
@@ -19,6 +19,7 @@ class MyApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final router = ref.watch(routerProvider);
     const primaryColor = Color(0xFFC039FF); // Vibrant Purple
     const backgroundColor = Color(0xFF121212); // Deep Black
     const surfaceColor = Color(0xFF1E1E1E); // Slightly Lighter Black for surfaces
@@ -82,10 +83,10 @@ class MyApp extends ConsumerWidget {
       ),
     );
 
-    return MaterialApp(
+    return MaterialApp.router(
       title: 'Auth Screen',
       theme: darkTheme,
-      home: const BottomNav(),
+      routerConfig: router,
     );
   }
 }
