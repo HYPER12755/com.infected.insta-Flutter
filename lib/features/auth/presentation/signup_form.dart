@@ -13,6 +13,7 @@ class _SignupFormState extends ConsumerState<SignupForm> with SingleTickerProvid
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _usernameController = TextEditingController();
+  final _fullNameController = TextEditingController();
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
 
@@ -43,7 +44,7 @@ class _SignupFormState extends ConsumerState<SignupForm> with SingleTickerProvid
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.1),
+          color: Colors.white.withAlpha(25),
           borderRadius: BorderRadius.circular(20),
         ),
         child: Column(
@@ -58,6 +59,8 @@ class _SignupFormState extends ConsumerState<SignupForm> with SingleTickerProvid
               ),
             ),
             const SizedBox(height: 20),
+            _buildTextField(_fullNameController, 'Full Name', false),
+            const SizedBox(height: 20),
             _buildTextField(_emailController, 'Email', false),
             const SizedBox(height: 20),
             _buildTextField(_usernameController, 'Username', false),
@@ -70,6 +73,7 @@ class _SignupFormState extends ConsumerState<SignupForm> with SingleTickerProvid
                       email: _emailController.text,
                       password: _passwordController.text,
                       username: _usernameController.text,
+                      fullName: _fullNameController.text,
                     );
               },
               style: ElevatedButton.styleFrom(

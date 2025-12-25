@@ -14,6 +14,8 @@ class AuthRepository {
 
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
+  User? get currentUser => _auth.currentUser;
+
   Future<void> signInWithEmailAndPassword(String email, String password) async {
     await _auth.signInWithEmailAndPassword(
       email: email,
@@ -35,8 +37,8 @@ class AuthRepository {
       'username': username,
       'email': email,
       'fullName': fullName,
-      'followers': [],
-      'following': [],
+      'followers': <String>[],
+      'following': <String>[],
       'posts': 0,
       'bio': '',
       'website': '',

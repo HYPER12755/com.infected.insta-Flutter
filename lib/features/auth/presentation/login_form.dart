@@ -42,7 +42,7 @@ class _LoginFormState extends ConsumerState<LoginForm> with SingleTickerProvider
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.1),
+          color: Colors.white.withAlpha(25),
           borderRadius: BorderRadius.circular(20),
         ),
         child: Column(

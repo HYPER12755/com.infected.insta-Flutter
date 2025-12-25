@@ -32,23 +32,21 @@ class MyApp extends ConsumerWidget {
       colorScheme: const ColorScheme.dark(
         primary: primaryColor,
         secondary: primaryColor,
-        background: backgroundColor,
         surface: surfaceColor,
         onPrimary: Colors.white,
         onSecondary: Colors.white,
-        onBackground: Colors.white,
         onSurface: Colors.white,
         error: Colors.redAccent,
         onError: Colors.white,
       ),
       textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme).copyWith(
         displaySmall: const TextStyle(fontWeight: FontWeight.bold, fontSize: 28),
-        bodyMedium: TextStyle(color: Colors.white.withOpacity(0.7)),
+        bodyMedium: TextStyle(color: Colors.white.withAlpha(178)),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: surfaceColor,
-        labelStyle: TextStyle(color: Colors.white.withOpacity(0.7)),
+        labelStyle: TextStyle(color: Colors.white.withAlpha(178)),
         floatingLabelStyle: const TextStyle(color: primaryColor),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
