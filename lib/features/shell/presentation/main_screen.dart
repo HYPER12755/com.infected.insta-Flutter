@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:myapp/features/feed/presentation/feed_screen.dart';
-import 'package:myapp/features/profile/presentation/profile_screen.dart';
 import 'package:myapp/features/search/presentation/search_screen.dart';
 
 class MainScreen extends StatefulWidget {
@@ -19,7 +17,6 @@ class _MainScreenState extends State<MainScreen> {
     const SearchScreen(),
     const Center(child: Text('Add Post')),
     const Center(child: Text('Reels')),
-    const ProfileScreen(),
   ];
 
   void _onTabTapped(int index) {
@@ -47,10 +44,6 @@ class _MainScreenState extends State<MainScreen> {
         iconSize: 24,
         items: const [
           BottomNavigationBarItem(
-            icon: Icon(FontAwesomeIcons.n),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
             icon: Icon(Icons.home),
             label: 'Home',
           ),
@@ -65,13 +58,6 @@ class _MainScreenState extends State<MainScreen> {
           BottomNavigationBarItem(
             icon: Icon(Icons.video_collection_outlined),
             label: 'Reels',
-          ),
-          BottomNavigationBarItem(
-            icon: CircleAvatar(
-              radius: 12,
-              // backgroundImage: NetworkImage('URL_TO_PROFILE_PIC'),
-            ),
-            label: 'Profile',
           ),
         ],
       ),
