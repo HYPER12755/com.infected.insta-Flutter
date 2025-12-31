@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:myapp/features/posts/create_post_page.dart';
-import 'package:myapp/features/profile/profile_page.dart';
+import 'package:myapp/features/profile/presentation/profile_screen.dart';
 import 'package:myapp/features/reels/reels_page.dart';
 
 class HomePage extends StatefulWidget {
@@ -19,7 +19,7 @@ class _HomePageState extends State<HomePage> {
     const SearchPage(),
     const CreatePostPage(),
     const ReelsPage(),
-    const ProfilePage(),
+    const ProfileScreen(),
   ];
 
   @override

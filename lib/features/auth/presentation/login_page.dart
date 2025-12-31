@@ -78,34 +78,18 @@ class _LoginPageState extends ConsumerState<LoginPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Email', style: Theme.of(context).textTheme.labelLarge),
-                const SizedBox(height: 8),
                 TextFormField(
                   controller: _emailController,
-                  decoration: const InputDecoration(hintText: 'name@example.com'),
+                  decoration: const InputDecoration(labelText: 'Email'),
                   validator: (value) => value!.isEmpty ? 'Please enter an email' : null,
                   enabled: !_isLoading,
                 ),
                 const SizedBox(height: 20),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('Password', style: Theme.of(context).textTheme.labelLarge),
-                    GestureDetector(
-                      onTap: () { /* Handle forgot password */ },
-                      child: Text(
-                        'Forgot password?',
-                        style: TextStyle(color: Theme.of(context).primaryColor, fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
                 TextFormField(
                   controller: _passwordController,
                   obscureText: !_showPassword,
                   decoration: InputDecoration(
-                    hintText: '••••••••',
+                    labelText: 'Password',
                     suffixIcon: IconButton(
                       icon: Icon(_showPassword ? FontAwesomeIcons.eyeSlash : FontAwesomeIcons.eye, size: 18),
                       onPressed: () => setState(() => _showPassword = !_showPassword),
@@ -113,6 +97,17 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   ),
                   validator: (value) => value!.length < 6 ? 'Password must be at least 6 characters' : null,
                   enabled: !_isLoading,
+                ),
+                 const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: GestureDetector(
+                      onTap: () { /* Handle forgot password */ },
+                      child: Text(
+                        'Forgot password?',
+                        style: TextStyle(color: Theme.of(context).primaryColor, fontWeight: FontWeight.bold),
+                      ),
+                    ),
                 ),
               ],
             ),

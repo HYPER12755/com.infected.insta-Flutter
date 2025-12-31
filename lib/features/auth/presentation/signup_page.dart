@@ -84,40 +84,32 @@ class _SignupPageState extends ConsumerState<SignupPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Full Name', style: Theme.of(context).textTheme.labelLarge),
-                const SizedBox(height: 8),
                 TextFormField(
                   controller: _fullNameController,
-                  decoration: const InputDecoration(hintText: 'John Doe'),
+                  decoration: const InputDecoration(labelText: 'Full Name'),
                   validator: (value) => value!.isEmpty ? 'Please enter your full name' : null,
                   enabled: !_isLoading,
                 ),
                 const SizedBox(height: 20),
-                Text('Username', style: Theme.of(context).textTheme.labelLarge),
-                const SizedBox(height: 8),
                 TextFormField(
                   controller: _usernameController,
-                  decoration: const InputDecoration(hintText: 'john.doe'),
+                  decoration: const InputDecoration(labelText: 'Username'),
                   validator: (value) => value!.isEmpty ? 'Please enter a username' : null,
                   enabled: !_isLoading,
                 ),
                 const SizedBox(height: 20),
-                Text('Email', style: Theme.of(context).textTheme.labelLarge),
-                const SizedBox(height: 8),
                 TextFormField(
                   controller: _emailController,
-                  decoration: const InputDecoration(hintText: 'name@example.com'),
+                  decoration: const InputDecoration(labelText: 'Email'),
                   validator: (value) => value!.isEmpty ? 'Please enter an email' : null,
                   enabled: !_isLoading,
                 ),
                 const SizedBox(height: 20),
-                Text('Password', style: Theme.of(context).textTheme.labelLarge),
-                const SizedBox(height: 8),
                 TextFormField(
                   controller: _passwordController,
                   obscureText: !_showPassword,
                   decoration: InputDecoration(
-                    hintText: '••••••••',
+                    labelText: 'Password',
                     suffixIcon: IconButton(
                       icon: Icon(_showPassword ? FontAwesomeIcons.eyeSlash : FontAwesomeIcons.eye, size: 18),
                       onPressed: () => setState(() => _showPassword = !_showPassword),
