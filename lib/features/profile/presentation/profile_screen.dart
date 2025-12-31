@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:myapp/features/profile/application/profile_provider.dart';
 import 'package:myapp/features/profile/presentation/edit_profile_screen.dart';
+import 'package:myapp/features/settings/presentation/settings_screen.dart';
 import 'package:provider/provider.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -17,7 +18,15 @@ class ProfileScreen extends StatelessWidget {
             title: Text(profile.username, style: const TextStyle(fontWeight: FontWeight.bold)),
             actions: [
               IconButton(onPressed: () {}, icon: const Icon(Icons.add_box_outlined)),
-              IconButton(onPressed: () {}, icon: const Icon(Icons.menu)),
+              IconButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const SettingsScreen()),
+                  );
+                },
+                icon: const Icon(Icons.settings),
+              ),
             ],
           ),
           body: DefaultTabController(

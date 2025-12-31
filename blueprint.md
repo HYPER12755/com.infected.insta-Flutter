@@ -2,19 +2,43 @@
 
 ## Overview
 
-This document outlines the style, design, and features of an Instagram clone created with Flutter.
+This document outlines the architecture and implementation of a production-ready Instagram clone built with Flutter. The application features a dynamic, state-driven UI, a clear separation of concerns, and a polished, modern design. It includes core features like profile viewing, editing, a comprehensive settings screen, and a flexible navigation system.
 
-## Style and Design
+## Style, Design, and Features
 
-The app features a clean and modern design with a light and dark theme. The color scheme is based on the Instagram brand, with a focus on black, white, and grey. The typography is simple and easy to read. The UI is built with standard Flutter widgets and placeholder data to simulate a real user experience. I have polished the UI to be more consistent with the Instagram UI, including adding a staggered grid view to the search screen, and updating the profile screen to have a more modern and clean UI. The creation of new posts is handled through a modal bottom sheet for a seamless user experience.
+### Architecture
+- **State Management**: `provider` is used for robust and scalable state management. `ChangeNotifierProvider` is used for managing UI state, with `SettingsProvider` and `ProfileProvider` at the core.
+- **Navigation**: `go_router` handles all routing, providing a declarative and flexible navigation system.
+- **Project Structure**: The project is organized by feature, with a clear separation of presentation, application, and domain layers.
 
-## Features
+### UI/UX
+- **Theme**: A modern, dark theme is implemented for a sleek and professional look. The theme can be toggled between light and dark modes.
+- **Profile Screen**: A dynamic profile screen that displays the user's name, username, bio, and profile picture. It also includes stats for posts, followers, and following.
+- **Edit Profile Screen**: A functional screen that allows users to edit their name, username, and bio. It includes business logic to restrict username changes to twice every 14 days.
+- **Profile Picture**: Users can select a profile picture from their device's gallery.
+- **Settings Screen**: A comprehensive settings screen that mirrors the essential options found in the original Instagram app. It includes account settings, privacy options, a theme toggle, and a logout feature.
 
-- **Splash Screen**: The first screen the user sees when they open the app.
-- **Login Screen**: A simple login screen that allows a user to enter their credentials.
-- **Feed Screen**: Displays a list of posts with likes, comments, and share buttons. The username and caption are tappable.
-- **Search Screen**: Features a staggered grid layout for a more visually appealing presentation of search results.
-- **Create Post Screen**: Allows users to select an image from their gallery, write a caption, and upload the new post. The image is stored in Firebase Storage and the post data is saved to Firestore. This screen is presented as a modal bottom sheet.
-- **Reels Screen**: Displays a list of reels in a `PageView` with an overlay for user information and a follow button.
-- **Profile Screen**: Features a modern and clean UI with a circular profile picture, a "Follow" button, and tappable stats.
-- **Bottom Navigation Bar**: Allows users to easily switch between the Feed, Search, Reels, and Profile screens. Tapping the 'Create' icon opens a modal sheet for creating a new post.
+### Implemented Features
+- **Profile Management**:
+  - View and edit profile information.
+  - Update profile picture from the gallery.
+  - Business logic to enforce username change restrictions.
+- **State-Driven UI**:
+  - The UI is fully connected to the `ProfileProvider` and `SettingsProvider`, ensuring that all data is live and dynamically updated.
+- **Navigation**:
+  - A clear and intuitive navigation flow between the profile, edit profile, and settings screens.
+- **Settings**:
+  - Toggle between light and dark themes.
+  - Toggle a private account setting.
+  - A logout button.
+
+## Current Plan
+
+The immediate next step is to run the application and ensure all implemented features are working as expected. This includes:
+- Verifying that the profile data is correctly displayed and updated.
+- Testing the profile picture selection and update functionality.
+- Confirming that the username change restrictions are enforced.
+- Ensuring the navigation between screens is smooth and bug-free.
+- Testing the settings screen functionality, including the theme toggle and private account switch.
+
+After successful testing, the application will be ready for further feature development, such as implementing a post feed, following/unfollowing users, and adding social authentication.

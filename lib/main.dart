@@ -2,6 +2,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:myapp/features/profile/application/profile_provider.dart';
+import 'package:myapp/features/settings/application/settings_provider.dart';
 import 'package:myapp/router.dart';
 import 'package:provider/provider.dart';
 
@@ -83,12 +84,21 @@ class MyApp extends StatelessWidget {
       ),
     );
 
-    return ChangeNotifierProvider(
-      create: (context) => ProfileProvider(),
-      child: MaterialApp.router(
-        title: 'Auth Screen',
-        theme: darkTheme,
-        routerConfig: router,
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (context) => ProfileProvider()),
+        ChangeNotifierProvider(create: (context) => SettingsProvider()),
+      ],
+      child: Consumer<SettingsProvider>(
+        builder: (context, settingsProvider, child) {
+          return MaterialApp.router(
+            title: 'Auth Screen',
+            theme: darkTheme,
+            darkTheme: darkTheme, // Explicitly set dark theme
+            themeMode: settingsProvider.themeMode,
+            routerConfig: router,
+          );
+        },
       ),
     );
   }

@@ -24,7 +24,7 @@ class Profile {
 
 // A provider to manage the state of the user's profile.
 class ProfileProvider with ChangeNotifier {
-  Profile _profile = Profile(name: 'Your Name', username: 'YourUsername', bio: 'This is your bio!');
+  final Profile _profile = Profile(name: 'Your Name', username: 'YourUsername', bio: 'This is your bio!');
 
   Profile get profile => _profile;
 
@@ -46,9 +46,7 @@ class ProfileProvider with ChangeNotifier {
       }
 
       _profile.usernameChangeCount++;
-      if(_profile.usernameLastChanged == null) {
-        _profile.usernameLastChanged = now;
-      }
+      _profile.usernameLastChanged ??= now;
     }
 
     _profile.name = newName;

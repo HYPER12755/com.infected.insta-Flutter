@@ -43,15 +43,19 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           TextButton(
             onPressed: () async {
               if (_formKey.currentState!.validate()) {
+                final navigator = Navigator.of(context);
+                final scaffoldMessenger = ScaffoldMessenger.of(context);
+
                 final success = await profileProvider.updateProfile(
                   _nameController.text,
                   _usernameController.text,
                   _bioController.text,
                 );
+
                 if (success) {
-                  Navigator.pop(context);
+                  navigator.pop();
                 } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  scaffoldMessenger.showSnackBar(
                     const SnackBar(
                       content: Text('You cannot change your username more than twice in 14 days.'),
                     ),
