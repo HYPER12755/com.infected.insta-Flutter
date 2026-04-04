@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:myapp/features/posts/create_post_page.dart';
-import 'package:myapp/features/profile/presentation/profile_screen.dart';
-import 'package:myapp/features/reels/reels_page.dart';
+import 'package:infected_insta/features/posts/create_post_page.dart';
+import 'package:infected_insta/features/profile/presentation/profile_screen.dart';
+import 'package:infected_insta/features/reels/reels_page.dart';
+import 'package:infected_insta/features/chat/screens/chat_screen.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -19,6 +20,7 @@ class _HomePageState extends State<HomePage> {
     const SearchPage(),
     const CreatePostPage(),
     const ReelsPage(),
+    const ChatScreen(),
     const ProfileScreen(),
   ];
 
@@ -53,6 +55,10 @@ class _HomePageState extends State<HomePage> {
             label: 'Reels',
           ),
           BottomNavigationBarItem(
+            icon: Icon(FontAwesomeIcons.message),
+            label: 'Messages',
+          ),
+          BottomNavigationBarItem(
             icon: Icon(FontAwesomeIcons.circleUser),
             label: 'Profile',
           ),
@@ -69,10 +75,28 @@ class FeedPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('InfectedX', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24, fontStyle: FontStyle.italic)),
+        title: const Text(
+          'InfectedX',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 24,
+            fontStyle: FontStyle.italic,
+          ),
+        ),
         actions: [
-          IconButton(onPressed: () {}, icon: const Icon(FontAwesomeIcons.heart)),
-          IconButton(onPressed: () {}, icon: const Icon(FontAwesomeIcons.paperPlane)),
+          IconButton(
+            onPressed: () {},
+            icon: const Icon(FontAwesomeIcons.heart),
+          ),
+          IconButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const ChatScreen()),
+              );
+            },
+            icon: const Icon(FontAwesomeIcons.paperPlane),
+          ),
         ],
       ),
       body: Column(
@@ -102,9 +126,15 @@ class FeedPage extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text('No Posts Yet', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                  Text(
+                    'No Posts Yet',
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  ),
                   SizedBox(height: 8),
-                  Text('Be the first one to post!', style: TextStyle(color: Colors.grey)),
+                  Text(
+                    'Be the first one to post!',
+                    style: TextStyle(color: Colors.grey),
+                  ),
                 ],
               ),
             ),
@@ -159,7 +189,7 @@ class StoryCircle extends StatelessWidget {
             ),
             child: const Icon(Icons.add, color: Colors.white, size: 16),
           ),
-        )
+        ),
       ],
     );
   }
@@ -170,6 +200,14 @@ class SearchPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Sample users for demonstration
+    final users = List.generate(20, (index) => _User(
+      username: 'user_$index',
+      name: 'User ${index + 1}',
+      avatar: 'https://picsum.photos/seed/user$index/200/200',
+      isFollowing: index % 3 == 0,
+    ));
+
     return Scaffold(
       appBar: AppBar(
         title: Container(
@@ -178,17 +216,60 @@ class SearchPage extends StatelessWidget {
             color: Colors.grey[850],
             borderRadius: BorderRadius.circular(10),
           ),
-          child: const TextField(
-            style: TextStyle(color: Colors.white),
+          child: TextField(
+            style: const TextStyle(color: Colors.white),
             decoration: InputDecoration(
-              prefixIcon: Icon(Icons.search, color: Colors.grey),
+              prefixIcon: const Icon(Icons.search, color: Colors.grey),
               hintText: 'Search for users...',
-              hintStyle: TextStyle(color: Colors.grey),
+              hintStyle: TextStyle(color: Colors.grey[600]),
               border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             ),
           ),
         ),
       ),
+      body: ListView.builder(
+        itemCount: users.length,
+        itemBuilder: (context, index) {
+          final user = users[index];
+          return ListTile(
+            leading: CircleAvatar(
+              radius: 24,
+              backgroundImage: NetworkImage(user.avatar),
+            ),
+            title: Text(
+              user.username,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            subtitle: Text(user.name),
+            trailing: TextButton(
+              onPressed: () {},
+              style: TextButton.styleFrom(
+                backgroundColor: user.isFollowing ? Colors.grey[800] : const Color(0xFFC039FF),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+              ),
+              child: Text(
+                user.isFollowing ? 'Following' : 'Follow',
+                style: const TextStyle(color: Colors.white),
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
+}
+
+class _User {
+  final String username;
+  final String name;
+  final String avatar;
+  final bool isFollowing;
+
+  _User({
+    required this.username,
+    required this.name,
+    required this.avatar,
+    required this.isFollowing,
+  });
 }
