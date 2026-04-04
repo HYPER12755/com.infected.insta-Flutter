@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
-import 'package:myapp/features/call/models/call_model.dart';
+import 'package:infected_insta/features/call/models/call_model.dart';
 
 /// Callback types for signaling events
 typedef OnCallCreated = void Function(CallModel call);
@@ -26,16 +26,6 @@ class SignalingService {
   OnCallCreated? onCallCreated;
   OnCallUpdated? onCallUpdated;
   OnCallEnded? onCallEnded;
-
-  // WebRTC configuration
-  final Map<String, dynamic> _configuration = {
-    'iceServers': [
-      {'urls': 'stun:stun.l.google.com:19302'},
-      {'urls': 'stun:stun1.l.google.com:19302'},
-      {'urls': 'stun:stun2.l.google.com:19302'},
-    ],
-    'iceCandidatePoolSize': 10,
-  };
 
   /// Initialize the signaling service with current user info
   void initialize({

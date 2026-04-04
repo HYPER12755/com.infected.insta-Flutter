@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:myapp/features/auth/presentation/auth_screen.dart';
+import 'package:infected_insta/features/auth/presentation/auth_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});

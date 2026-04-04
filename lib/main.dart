@@ -1,9 +1,9 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:myapp/features/profile/application/profile_provider.dart';
-import 'package:myapp/features/settings/application/settings_provider.dart';
-import 'package:myapp/router.dart';
+import 'package:infected_insta/features/profile/application/profile_provider.dart';
+import 'package:infected_insta/features/settings/application/settings_provider.dart';
+import 'package:infected_insta/router.dart';
 import 'package:provider/provider.dart';
 
 import 'firebase_options.dart';

@@ -3,8 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 import '../providers/profile_provider.dart';
-import 'package:myapp/features/call/screens/call_screen.dart';
-import 'package:myapp/features/call/models/call_model.dart';
+import 'package:infected_insta/features/call/screens/call_screen.dart';
+import 'package:infected_insta/features/call/models/call_model.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});

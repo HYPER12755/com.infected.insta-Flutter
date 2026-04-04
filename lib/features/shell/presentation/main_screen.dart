@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:myapp/features/feed/presentation/feed_screen.dart';
-import 'package:myapp/features/profile/presentation/profile_screen.dart';
-import 'package:myapp/features/search/presentation/search_screen.dart';
+import 'package:infected_insta/features/feed/presentation/feed_screen.dart';
+import 'package:infected_insta/features/profile/presentation/profile_screen.dart';
+import 'package:infected_insta/features/search/presentation/search_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});

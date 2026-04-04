@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:myapp/features/call/models/call_model.dart';
+import 'package:infected_insta/features/call/models/call_model.dart';
 import 'package:intl/intl.dart';
 
 /// Card widget for displaying call history items

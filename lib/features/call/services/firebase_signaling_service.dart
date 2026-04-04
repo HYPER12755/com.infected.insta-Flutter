@@ -2,11 +2,12 @@ import 'dart:async';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
-import 'package:myapp/features/call/models/call_model.dart';
+import 'package:infected_insta/features/call/models/call_model.dart';
 
 /// Service that handles WebRTC signaling via Firebase Realtime Database
 class FirebaseSignalingService {
-  static final FirebaseSignalingService _instance = FirebaseSignalingService._internal();
+  static final FirebaseSignalingService _instance =
+      FirebaseSignalingService._internal();
   factory FirebaseSignalingService() => _instance;
   FirebaseSignalingService._internal();
 
@@ -17,7 +18,7 @@ class FirebaseSignalingService {
   // WebRTC components
   RTCPeerConnection? _peerConnection;
   MediaStream? _localStream;
-  
+
   // Video renderers
   RTCVideoRenderer? _localRenderer;
   RTCVideoRenderer? _remoteRenderer;
@@ -62,16 +63,13 @@ class FirebaseSignalingService {
     _currentUserAvatar = userAvatar;
     _callsRef = FirebaseDatabase.instance.ref().child('calls');
     _signalingRef = FirebaseDatabase.instance.ref().child('signaling');
-    
+
     _listenForIncomingCalls();
     debugPrint('FirebaseSignalingService initialized for user: $userId');
   }
 
   /// Set video renderers
-  void setRenderers({
-    RTCVideoRenderer? local,
-    RTCVideoRenderer? remote,
-  }) {
+  void setRenderers({RTCVideoRenderer? local, RTCVideoRenderer? remote}) {
     _localRenderer = local;
     _remoteRenderer = remote;
   }
@@ -86,27 +84,35 @@ class FirebaseSignalingService {
   String? get currentUserId => _currentUserId;
 
   /// Get audio enabled status
-  bool get isAudioEnabled => _localStream?.getAudioTracks().firstOrNull?.enabled ?? false;
+  bool get isAudioEnabled =>
+      _localStream?.getAudioTracks().firstOrNull?.enabled ?? false;
 
   /// Get video enabled status
-  bool get isVideoEnabled => _localStream?.getVideoTracks().firstOrNull?.enabled ?? false;
+  bool get isVideoEnabled =>
+      _localStream?.getVideoTracks().firstOrNull?.enabled ?? false;
 
   /// Listen for incoming calls
   void _listenForIncomingCalls() {
-    _callsRef.orderByChild('calleeId').equalTo(_currentUserId).onChildAdded.listen((event) async {
-      if (event.snapshot.value != null) {
-        final callData = Map<String, dynamic>.from(event.snapshot.value as Map);
-        final call = CallModel.fromJson(callData);
+    _callsRef
+        .orderByChild('calleeId')
+        .equalTo(_currentUserId)
+        .onChildAdded
+        .listen((event) async {
+          if (event.snapshot.value != null) {
+            final callData = Map<String, dynamic>.from(
+              event.snapshot.value as Map,
+            );
+            final call = CallModel.fromJson(callData);
 
-        if (call.status == CallStatus.ringing) {
-          debugPrint('Incoming call: ${call.callId}');
-          onIncomingCall?.call(call);
-          
-          // Listen to this call's updates
-          _listenToCallUpdates(call.callId);
-        }
-      }
-    });
+            if (call.status == CallStatus.ringing) {
+              debugPrint('Incoming call: ${call.callId}');
+              onIncomingCall?.call(call);
+
+              // Listen to this call's updates
+              _listenToCallUpdates(call.callId);
+            }
+          }
+        });
   }
 
   /// Listen to call updates
@@ -116,14 +122,15 @@ class FirebaseSignalingService {
       if (event.snapshot.value != null) {
         final callData = Map<String, dynamic>.from(event.snapshot.value as Map);
         final call = CallModel.fromJson(callData);
-        
+
         onCallUpdated?.call(call);
-        
+
         if (call.status == CallStatus.accepted) {
           onCallAccepted?.call(call);
         } else if (call.status == CallStatus.declined) {
           onCallDeclined?.call(call);
-        } else if (call.status == CallStatus.ended || call.status == CallStatus.cancelled) {
+        } else if (call.status == CallStatus.ended ||
+            call.status == CallStatus.cancelled) {
           onCallEnded?.call();
         }
       }
@@ -139,7 +146,9 @@ class FirebaseSignalingService {
   }) async {
     try {
       // Initialize local media first
-      final success = await initializeMedia(videoEnabled: callType == CallType.video);
+      final success = await initializeMedia(
+        videoEnabled: callType == CallType.video,
+      );
       if (!success) {
         debugPrint('Failed to initialize media');
         return null;
@@ -158,7 +167,7 @@ class FirebaseSignalingService {
 
       // Create offer
       final offer = await _createOffer();
-      
+
       // Create updated call with offer
       final callWithOffer = call.copyWith(offerSdp: offer.sdp);
 
@@ -185,10 +194,12 @@ class FirebaseSignalingService {
   Future<bool> acceptCall(CallModel call) async {
     try {
       _currentCall = call;
-      
+
       // Initialize media if needed
       if (_localStream == null) {
-        final success = await initializeMedia(videoEnabled: call.callType == CallType.video);
+        final success = await initializeMedia(
+          videoEnabled: call.callType == CallType.video,
+        );
         if (!success) return false;
       }
 
@@ -254,12 +265,12 @@ class FirebaseSignalingService {
       };
 
       _localStream = await navigator.mediaDevices.getUserMedia(constraints);
-      
+
       // Set to local renderer
       if (_localRenderer != null) {
         _localRenderer!.srcObject = _localStream;
       }
-      
+
       debugPrint('Local media initialized');
       return true;
     } catch (e) {
@@ -281,7 +292,8 @@ class FirebaseSignalingService {
 
     // Handle ICE candidates
     _peerConnection!.onIceCandidate = (candidate) async {
-      if (candidate != null && _currentCall != null) {
+      // candidate is non-nullable in newer flutter_webrtc versions
+      if (_currentCall != null) {
         await _signalingRef
             .child(_currentCall!.callId)
             .child('candidates')
@@ -308,10 +320,10 @@ class FirebaseSignalingService {
   /// Create offer
   Future<RTCSessionDescription> _createOffer() async {
     await _createPeerConnection();
-    
+
     final offer = await _peerConnection!.createOffer();
     await _peerConnection!.setLocalDescription(offer);
-    
+
     return offer;
   }
 
@@ -323,16 +335,18 @@ class FirebaseSignalingService {
         .child('candidates')
         .onChildAdded
         .listen((event) async {
-      if (event.snapshot.value != null && _peerConnection != null) {
-        final candidateData = Map<String, dynamic>.from(event.snapshot.value as Map);
-        final candidate = RTCIceCandidate(
-          candidateData['candidate'] as String,
-          candidateData['sdpMid'] as String?,
-          candidateData['sdpMLineIndex'] as int?,
-        );
-        await _peerConnection!.addCandidate(candidate);
-      }
-    });
+          if (event.snapshot.value != null && _peerConnection != null) {
+            final candidateData = Map<String, dynamic>.from(
+              event.snapshot.value as Map,
+            );
+            final candidate = RTCIceCandidate(
+              candidateData['candidate'] as String,
+              candidateData['sdpMid'] as String?,
+              candidateData['sdpMLineIndex'] as int?,
+            );
+            await _peerConnection!.addCandidate(candidate);
+          }
+        });
   }
 
   /// Toggle audio
@@ -376,16 +390,16 @@ class FirebaseSignalingService {
   void _cleanup() {
     _callSubscription?.cancel();
     _candidatesSubscription?.cancel();
-    
+
     _peerConnection?.close();
     _peerConnection = null;
-    
+
     _localStream?.getTracks().forEach((track) => track.stop());
     _localStream = null;
-    
+
     _localRenderer?.srcObject = null;
     _remoteRenderer?.srcObject = null;
-    
+
     _currentCall = null;
   }
 

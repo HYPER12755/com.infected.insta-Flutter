@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:myapp/features/auth/presentation/login_page.dart';
+import 'package:infected_insta/features/auth/presentation/login_page.dart';
 
 class AuthScreen extends StatelessWidget {
   const AuthScreen({super.key});

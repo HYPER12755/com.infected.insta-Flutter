@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:myapp/features/call/models/call_model.dart';
-import 'package:myapp/features/call/providers/call_provider.dart';
-import 'package:myapp/features/call/screens/video_call_screen.dart';
+import 'package:infected_insta/features/call/models/call_model.dart';
+import 'package:infected_insta/features/call/providers/call_provider.dart';
+import 'package:infected_insta/features/call/screens/video_call_screen.dart';
 
 /// Screen for incoming and outgoing call UI
 class CallScreen extends ConsumerWidget {
@@ -54,8 +54,6 @@ class _CallInitScreen extends ConsumerStatefulWidget {
 class _CallInitScreenState extends ConsumerState<_CallInitScreen> {
   CallType _selectedCallType = CallType.video;
   String? _selectedUserId;
-  String? _selectedUserName;
-  String? _selectedUserAvatar;
 
   @override
   Widget build(BuildContext context) {

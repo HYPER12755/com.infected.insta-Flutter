@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:myapp/features/call/models/call_model.dart';
-import 'package:myapp/features/call/screens/call_screen.dart';
+import 'package:infected_insta/features/call/models/call_model.dart';
+import 'package:infected_insta/features/call/screens/call_screen.dart';
 
 /// Button widget to initiate a call from profile or chat
 class CallButton extends StatelessWidget {

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:myapp/features/profile/application/profile_provider.dart';
-import 'package:myapp/features/profile/presentation/edit_profile_screen.dart';
-import 'package:myapp/features/settings/presentation/settings_screen.dart';
+import 'package:infected_insta/features/profile/application/profile_provider.dart';
+import 'package:infected_insta/features/profile/presentation/edit_profile_screen.dart';
+import 'package:infected_insta/features/settings/presentation/settings_screen.dart';
 import 'package:provider/provider.dart';
 
 class ProfileScreen extends StatelessWidget {

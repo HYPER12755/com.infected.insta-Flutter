@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:myapp/features/auth/presentation/auth_screen.dart';
-import 'package:myapp/features/auth/presentation/signup_screen.dart';
-import 'package:myapp/features/home/home_page.dart';
-import 'package:myapp/features/call/screens/call_screen.dart';
-import 'package:myapp/features/call/screens/video_call_screen.dart';
-import 'package:myapp/features/call/models/call_model.dart';
+import 'package:infected_insta/features/auth/presentation/auth_screen.dart';
+import 'package:infected_insta/features/auth/presentation/signup_screen.dart';
+import 'package:infected_insta/features/home/home_page.dart';
+import 'package:infected_insta/features/call/screens/call_screen.dart';
+import 'package:infected_insta/features/call/screens/video_call_screen.dart';
+import 'package:infected_insta/features/call/models/call_model.dart';
 
 final router = GoRouter(
   initialLocation: '/',

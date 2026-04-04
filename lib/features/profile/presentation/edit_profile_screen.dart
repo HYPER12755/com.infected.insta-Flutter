@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:myapp/features/profile/application/profile_provider.dart';
+import 'package:infected_insta/features/profile/application/profile_provider.dart';
 import 'package:provider/provider.dart';
 
 class EditProfileScreen extends StatefulWidget {

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:myapp/features/auth/presentation/providers.dart';
+import 'package:infected_insta/features/auth/presentation/providers.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});

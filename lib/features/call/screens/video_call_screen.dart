@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:myapp/features/call/models/call_model.dart';
-import 'package:myapp/features/call/providers/call_provider.dart';
+import 'package:infected_insta/features/call/models/call_model.dart';
+import 'package:infected_insta/features/call/providers/call_provider.dart';
 
 /// Active video/audio call screen with controls
 class VideoCallScreen extends ConsumerStatefulWidget {
@@ -53,7 +53,6 @@ class _VideoCallScreenState extends ConsumerState<VideoCallScreen> {
   Widget build(BuildContext context) {
     final callState = ref.watch(callProvider);
     final callProviderNotifier = ref.read(callProvider.notifier);
-    final theme = Theme.of(context);
 
     // Check if call is still active
     if (!callState.isInCall || callState.currentCall == null) {
