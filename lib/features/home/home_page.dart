@@ -200,14 +200,6 @@ class SearchPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Sample users for demonstration
-    final users = List.generate(20, (index) => _User(
-      username: 'user_$index',
-      name: 'User ${index + 1}',
-      avatar: 'https://picsum.photos/seed/user$index/200/200',
-      isFollowing: index % 3 == 0,
-    ));
-
     return Scaffold(
       appBar: AppBar(
         title: Container(
@@ -223,53 +215,37 @@ class SearchPage extends StatelessWidget {
               hintText: 'Search for users...',
               hintStyle: TextStyle(color: Colors.grey[600]),
               border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 10,
+              ),
             ),
+            onChanged: (query) {
+              // TODO: Implement real-time search with Firestore
+              // Query users from Firestore: users collection
+              // Filter by username or display name
+            },
           ),
         ),
       ),
-      body: ListView.builder(
-        itemCount: users.length,
-        itemBuilder: (context, index) {
-          final user = users[index];
-          return ListTile(
-            leading: CircleAvatar(
-              radius: 24,
-              backgroundImage: NetworkImage(user.avatar),
+      body: const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.search, size: 64, color: Colors.grey),
+            SizedBox(height: 16),
+            Text(
+              'Search for users',
+              style: TextStyle(fontSize: 18, color: Colors.grey),
             ),
-            title: Text(
-              user.username,
-              style: const TextStyle(fontWeight: FontWeight.bold),
+            SizedBox(height: 8),
+            Text(
+              'Find friends to follow',
+              style: TextStyle(color: Colors.grey),
             ),
-            subtitle: Text(user.name),
-            trailing: TextButton(
-              onPressed: () {},
-              style: TextButton.styleFrom(
-                backgroundColor: user.isFollowing ? Colors.grey[800] : const Color(0xFFC039FF),
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-              ),
-              child: Text(
-                user.isFollowing ? 'Following' : 'Follow',
-                style: const TextStyle(color: Colors.white),
-              ),
-            ),
-          );
-        },
+          ],
+        ),
       ),
     );
   }
-}
-
-class _User {
-  final String username;
-  final String name;
-  final String avatar;
-  final bool isFollowing;
-
-  _User({
-    required this.username,
-    required this.name,
-    required this.avatar,
-    required this.isFollowing,
-  });
 }
