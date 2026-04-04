@@ -7,6 +7,7 @@ final profileProvider = FutureProvider<User>((ref) async {
   await Future.delayed(const Duration(seconds: 2));
 
   return User(
+    userId: 'test_user_id',
     username: 'testuser',
     name: 'Test User',
     bio: 'This is a test bio.',

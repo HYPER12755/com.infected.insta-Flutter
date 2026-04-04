@@ -14,12 +14,14 @@
         "firebase_app_check",
         "firebase_auth",
         "firebase_core",
+        "firebase_database",
         "firebase_messaging",
         "firebase_storage",
         "flutter",
         "flutter_riverpod",
         "flutter_staggered_grid_view",
         "flutter_svg",
+        "flutter_webrtc",
         "font_awesome_flutter",
         "freezed_annotation",
         "get_it",
@@ -233,6 +235,18 @@
       ]
     },
     {
+      "name": "flutter_webrtc",
+      "version": "0.12.12+hotfix.1",
+      "dependencies": [
+        "collection",
+        "dart_webrtc",
+        "flutter",
+        "path_provider",
+        "web",
+        "webrtc_interface"
+      ]
+    },
+    {
       "name": "uuid",
       "version": "4.5.2",
       "dependencies": [
@@ -307,6 +321,17 @@
         "meta",
         "riverpod",
         "state_notifier"
+      ]
+    },
+    {
+      "name": "firebase_database",
+      "version": "12.1.1",
+      "dependencies": [
+        "firebase_core",
+        "firebase_core_platform_interface",
+        "firebase_database_platform_interface",
+        "firebase_database_web",
+        "flutter"
       ]
     },
     {
@@ -893,6 +918,24 @@
       ]
     },
     {
+      "name": "webrtc_interface",
+      "version": "1.5.1",
+      "dependencies": []
+    },
+    {
+      "name": "dart_webrtc",
+      "version": "1.8.1",
+      "dependencies": [
+        "collection",
+        "js",
+        "logging",
+        "meta",
+        "synchronized",
+        "web",
+        "webrtc_interface"
+      ]
+    },
+    {
       "name": "fixnum",
       "version": "1.1.1",
       "dependencies": []
@@ -1082,6 +1125,30 @@
       "dependencies": [
         "flutter",
         "google_sign_in_platform_interface"
+      ]
+    },
+    {
+      "name": "firebase_database_web",
+      "version": "0.2.7+2",
+      "dependencies": [
+        "collection",
+        "firebase_core",
+        "firebase_core_web",
+        "firebase_database_platform_interface",
+        "flutter",
+        "flutter_web_plugins"
+      ]
+    },
+    {
+      "name": "firebase_database_platform_interface",
+      "version": "0.3.0+1",
+      "dependencies": [
+        "_flutterfire_internals",
+        "collection",
+        "firebase_core",
+        "flutter",
+        "meta",
+        "plugin_platform_interface"
       ]
     },
     {
@@ -1435,6 +1502,11 @@
       ]
     },
     {
+      "name": "synchronized",
+      "version": "3.4.0",
+      "dependencies": []
+    },
+    {
       "name": "sqflite",
       "version": "2.4.2",
       "dependencies": [
@@ -1607,11 +1679,6 @@
         "sqflite_common",
         "sqflite_platform_interface"
       ]
-    },
-    {
-      "name": "synchronized",
-      "version": "3.4.0",
-      "dependencies": []
     }
   ],
   "configVersion": 1

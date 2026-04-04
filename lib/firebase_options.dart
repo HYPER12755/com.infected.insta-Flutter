@@ -45,42 +45,42 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyBLFzVXLjKaM6ODnaE5_sA-aZ2Y8aO8unI',
-    appId: '1:938595656888:web:3bbd0656b3e9776f0e404d',
+    apiKey: 'AIzaSyAaO_409s7a9m5937hlz3hiVkjgWeoEJkQ',
+    appId: '1:938595656888:web:29b945d068dd43c10e404d',
     messagingSenderId: '938595656888',
     projectId: 'infectedx-info',
     authDomain: 'infectedx-info.firebaseapp.com',
     databaseURL: 'https://infectedx-info-default-rtdb.firebaseio.com',
-    storageBucket: 'infectedx-info.appspot.com',
-    measurementId: 'G-11FSQFZFB2',
+    storageBucket: 'infectedx-info.firebasestorage.app',
+    measurementId: 'G-JLL86E7PE2',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyBLFzVXLjKaM6ODnaE5_sA-aZ2Y8aO8unI',
-    appId: '1:938595656888:android:0c2639180b95c3780e404d',
+    apiKey: 'AIzaSyAaO_409s7a9m5937hlz3hiVkjgWeoEJkQ',
+    appId: '1:938595656888:android:29b945d068dd43c10e404d',
     messagingSenderId: '938595656888',
     projectId: 'infectedx-info',
     databaseURL: 'https://infectedx-info-default-rtdb.firebaseio.com',
-    storageBucket: 'infectedx-info.appspot.com',
+    storageBucket: 'infectedx-info.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyBLFzVXLjKaM6ODnaE5_sA-aZ2Y8aO8unI',
-    appId: '1:938595656888:ios:a71d73b0a232b6940e404d',
+    apiKey: 'AIzaSyAaO_409s7a9m5937hlz3hiVkjgWeoEJkQ',
+    appId: '1:938595656888:ios:29b945d068dd43c10e404d',
     messagingSenderId: '938595656888',
     projectId: 'infectedx-info',
     databaseURL: 'https://infectedx-info-default-rtdb.firebaseio.com',
-    storageBucket: 'infectedx-info.appspot.com',
+    storageBucket: 'infectedx-info.firebasestorage.app',
     iosBundleId: 'com.example.myapp',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyBLFzVXLjKaM6ODnaE5_sA-aZ2Y8aO8unI',
-    appId: '1:938595656888:ios:a71d73b0a232b6940e404d',
+    apiKey: 'AIzaSyAaO_409s7a9m5937hlz3hiVkjgWeoEJkQ',
+    appId: '1:938595656888:ios:29b945d068dd43c10e404d',
     messagingSenderId: '938595656888',
     projectId: 'infectedx-info',
     databaseURL: 'https://infectedx-info-default-rtdb.firebaseio.com',
-    storageBucket: 'infectedx-info.appspot.com',
+    storageBucket: 'infectedx-info.firebasestorage.app',
     iosBundleId: 'com.example.myapp',
   );
 }

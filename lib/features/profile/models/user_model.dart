@@ -1,4 +1,5 @@
 class User {
+  final String userId;
   final String username;
   final String name;
   final String bio;
@@ -8,6 +9,7 @@ class User {
   final int posts;
 
   User({
+    required this.userId,
     required this.username,
     required this.name,
     required this.bio,

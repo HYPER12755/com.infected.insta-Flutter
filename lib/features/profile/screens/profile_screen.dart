@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 import '../providers/profile_provider.dart';
+import 'package:myapp/features/call/screens/call_screen.dart';
+import 'package:myapp/features/call/models/call_model.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -88,6 +90,52 @@ class ProfileScreen extends ConsumerWidget {
                                     ),
                                   ),
                                   child: const Text('Message', style: TextStyle(color: Colors.black)),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              // Call buttons added for demo purposes
+                              Container(
+                                decoration: BoxDecoration(
+                                  border: Border.all(color: Colors.grey.shade300),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Row(
+                                  children: [
+                                    IconButton(
+                                      onPressed: () {
+                                        // For demo: call self (would be different user in real app)
+                                        Navigator.of(context).push(
+                                          MaterialPageRoute(
+                                            builder: (context) => CallScreen(
+                                              calleeId: user.userId,
+                                              calleeName: user.name,
+                                              calleeAvatar: user.avatarUrl,
+                                              callType: CallType.audio,
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                      icon: const Icon(Icons.call, color: Colors.black),
+                                      tooltip: 'Audio call',
+                                    ),
+                                    IconButton(
+                                      onPressed: () {
+                                        // For demo: video call self (would be different user in real app)
+                                        Navigator.of(context).push(
+                                          MaterialPageRoute(
+                                            builder: (context) => CallScreen(
+                                              calleeId: user.userId,
+                                              calleeName: user.name,
+                                              calleeAvatar: user.avatarUrl,
+                                              callType: CallType.video,
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                      icon: const Icon(Icons.videocam, color: Colors.black),
+                                      tooltip: 'Video call',
+                                    ),
+                                  ],
                                 ),
                               ),
                             ],
