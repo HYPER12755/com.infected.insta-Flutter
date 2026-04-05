@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
+import 'package:infected_insta/core/theme/instagram_theme.dart';
 import '../providers/reels_provider.dart';
 import '../../feed/models/post_model.dart';
 
@@ -163,6 +164,167 @@ class _ReelPlayerState extends State<ReelPlayer> {
           )
         ],
       ),
+    );
+  }
+}
+
+/// Audio/Effects Picker for Reels
+class AudioEffectsPicker extends StatelessWidget {
+  final Function(String) onAudioSelected;
+
+  AudioEffectsPicker({super.key, required this.onAudioSelected});
+
+  // Mock audio/trending sounds
+  final List<Map<String, dynamic>> _audios = List.generate(20, (index) {
+    return {
+      'id': index,
+      'title': index % 2 == 0 ? 'Trending Sound $index' : 'Original Audio $index',
+      'artist': 'Artist ${index + 1}',
+      'uses': '${(index + 1) * 1234}k',
+      'duration': '${(index % 30) + 15}s',
+    };
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.6,
+      decoration: const BoxDecoration(
+        color: InstagramColors.darkBackground,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      child: Column(
+        children: [
+          // Handle
+          Container(
+            margin: const EdgeInsets.only(top: 12),
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: InstagramColors.darkTextSecondary,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 16),
+          // Title
+          const Text(
+            'Audio',
+            style: TextStyle(
+              color: InstagramColors.darkText,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 16),
+          // Audio list
+          Expanded(
+            child: ListView.builder(
+              itemCount: _audios.length,
+              itemBuilder: (context, index) {
+                final audio = _audios[index];
+                return ListTile(
+                  leading: Container(
+                    width: 50,
+                    height: 50,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: InstagramColors.instagramGradient,
+                      ),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.music_note, color: Colors.white),
+                  ),
+                  title: Text(
+                    audio['title'],
+                    style: const TextStyle(
+                      color: InstagramColors.darkText,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  subtitle: Text(
+                    '${audio['artist']} • ${audio['uses']} uses',
+                    style: const TextStyle(color: InstagramColors.darkTextSecondary, fontSize: 12),
+                  ),
+                  trailing: Text(
+                    audio['duration'],
+                    style: const TextStyle(color: InstagramColors.darkTextSecondary),
+                  ),
+                  onTap: () => onAudioSelected(audio['title']),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Share Reels Sheet
+class ShareReelSheet extends StatelessWidget {
+  final String reelId;
+
+  const ShareReelSheet({super.key, required this.reelId});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: const BoxDecoration(
+        color: InstagramColors.darkBackground,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Handle
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: InstagramColors.darkTextSecondary,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 24),
+          // Title
+          const Text(
+            'Share Reel',
+            style: TextStyle(
+              color: InstagramColors.darkText,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 24),
+          // Share options
+          _buildOption(Icons.send, 'Send to...'),
+          _buildOption(Icons.link, 'Copy Link'),
+          _buildOption(Icons.share_outlined, 'Share to...'),
+          _buildOption(Icons.bookmark_outline, 'Save'),
+          const SizedBox(height: 16),
+          // Cancel
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () => Navigator.pop(context),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: InstagramColors.darkSurface,
+                foregroundColor: InstagramColors.darkText,
+              ),
+              child: const Text('Cancel'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOption(IconData icon, String label) {
+    return ListTile(
+      leading: Icon(icon, color: InstagramColors.darkText),
+      title: Text(label, style: const TextStyle(color: InstagramColors.darkText)),
+      onTap: () {},
     );
   }
 }

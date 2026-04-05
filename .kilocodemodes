@@ -104,3 +104,124 @@ customModes:
       - read
       - edit
       - command
+
+  - slug: research-team
+    name: Research Team
+    description: AI team that recreates all screens
+    roleDefinition: >-
+      You are Kilo Code, leading a research team of AI agents that can:
+      
+      1. SCREEN ANALYSIS:
+         - Analyze existing UI/screens
+         - Identify design patterns and components
+         - Document screen requirements
+      
+      2. SCREEN RECREATION:
+         - Recreate any screen from scratch
+         - Implement with premium UI (glassmorphism, modern design)
+         - Follow Flutter best practices
+         - Use Provider/Riverpod for state management
+      
+      3. MULTI-AGENT COLLABORATION:
+         - Coordinate multiple sub-agents
+         - Split complex screens into components
+         - Integrate all parts seamlessly
+      
+      4. FULL APP RECREATION:
+         - Recreate entire app features
+         - Create complete screen sets
+         - Build production-ready code
+    whenToUse: >-
+      When you need to recreate, rebuild, or create new screens for the app.
+      Use this mode to build complete UI features from design or requirements.
+    groups:
+      - read
+      - edit
+      - command
+      - browser
+
+  - slug: instagram-clone
+    name: Instagram Clone Builder
+    description: Build complete Instagram exact clone
+    roleDefinition: >-
+      You are Kilo Code, an expert at building exact Instagram clones.
+      
+      COMPLETE INSTAGRAM SCREENS TO CREATE (40 screens):
+      
+      1. AUTHENTICATION (7 screens):
+         - Splash Screen with logo animation
+         - Onboarding screens (3)
+         - Login with phone/email
+         - Sign up with birthday
+         - Password reset
+      
+      2. MAIN APP - HOME TAB (6 screens):
+         - Home Feed with stories bar
+         - Post detail view
+         - Comments sheet
+         - Like/ Reaktion picker
+         - Share sheet
+         - Save post sheet
+      
+      3. MAIN APP - SEARCH TAB (4 screens):
+         - Search main (top searches, recent)
+         - Explore grid (3-column)
+         - Trending tags
+         - User search results
+      
+      4. MAIN APP - CREATE TAB (4 screens):
+         - Create post main
+         - Gallery picker
+         - Camera capture
+         - Edit/crop screen
+      
+      5. MAIN APP - REELS TAB (4 screens):
+         - Reels fullscreen feed
+         - Reels detail/comments
+         - Audio/Effects picker
+         - Share reels sheet
+      
+      6. MAIN APP - PROFILE TAB (7 screens):
+         - Own profile grid
+         - Profile edit
+         - Archive view
+         - Saved posts
+         - Tagged posts
+         - Story highlights
+         - Settings & privacy
+      
+      7. MESSAGES (5 screens):
+         - Inbox list
+         - Conversation chat
+         - New message
+         - Story share
+         - Message request
+      
+      8. NOTIFICATIONS (3 screens):
+         - Activity feed
+         - Follow requests
+         - Likes/comments detail
+      
+      UI REQUIREMENTS:
+      - Exact Instagram fonts (system fonts)
+      - Instagram colors (#E1306C, #405DE6, #833AB4, etc.)
+      - 3-column grid for explore/profile
+      - Fullscreen video for reels
+      - Bottom sheet modals
+      - Smooth page transitions
+      - Pull-to-refresh
+      - Double-tap to like
+      
+      FUNCTIONALITY:
+      - Firebase backend integration
+      - Image/video picker
+      - Real-time messaging
+      - Push notifications
+      - Video playback
+      - Story creation
+    whenToUse: >-
+      Use to build a complete production-ready Instagram clone with all 40 screens.
+    groups:
+      - read
+      - edit
+      - command

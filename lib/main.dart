@@ -1,29 +1,41 @@
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:infected_insta/features/profile/application/profile_provider.dart';
+import 'package:infected_insta/firebase_options.dart';
 import 'package:infected_insta/features/settings/application/settings_provider.dart';
 import 'package:infected_insta/router.dart';
-import 'package:provider/provider.dart';
 
-import 'firebase_options.dart';
+// Provider for Settings using Provider (not StateNotifierProvider)
+final settingsProvider = Provider<SettingsProvider>((ref) {
+  return SettingsProvider();
+});
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize Firebase
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  runApp(const MyApp());
+  
+  runApp(
+    const ProviderScope(
+      child: MyApp(),
+    ),
+  );
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends ConsumerWidget {
   const MyApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    const primaryColor = Color(0xFFC039FF); // Vibrant Purple
-    const backgroundColor = Color(0xFF121212); // Deep Black
-    const surfaceColor = Color(0xFF1E1E1E); // Slightly Lighter Black for surfaces
+  Widget build(BuildContext context, WidgetRef ref) {
+    final settings = ref.watch(settingsProvider);
+    
+    const primaryColor = Color(0xFFC039FF);
+    const backgroundColor = Color(0xFF121212);
+    const surfaceColor = Color(0xFF1E1E1E);
 
     final darkTheme = ThemeData(
       useMaterial3: true,
@@ -40,10 +52,14 @@ class MyApp extends StatelessWidget {
         error: Colors.redAccent,
         onError: Colors.white,
       ),
-      textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme).copyWith(
-        displaySmall: const TextStyle(fontWeight: FontWeight.bold, fontSize: 28),
-        bodyMedium: TextStyle(color: Colors.white.withAlpha(178)),
-      ),
+      textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme)
+          .copyWith(
+            displaySmall: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 28,
+            ),
+            bodyMedium: TextStyle(color: Colors.white.withAlpha(178)),
+          ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: surfaceColor,
@@ -63,9 +79,7 @@ class MyApp extends StatelessWidget {
         style: ElevatedButton.styleFrom(
           backgroundColor: primaryColor,
           foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           padding: const EdgeInsets.symmetric(vertical: 16),
           textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
@@ -75,31 +89,19 @@ class MyApp extends StatelessWidget {
           backgroundColor: surfaceColor,
           foregroundColor: Colors.white,
           side: const BorderSide(color: Colors.transparent),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           padding: const EdgeInsets.symmetric(vertical: 14),
           textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
         ),
       ),
     );
 
-    return MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (context) => ProfileProvider()),
-        ChangeNotifierProvider(create: (context) => SettingsProvider()),
-      ],
-      child: Consumer<SettingsProvider>(
-        builder: (context, settingsProvider, child) {
-          return MaterialApp.router(
-            title: 'Auth Screen',
-            theme: darkTheme,
-            darkTheme: darkTheme, // Explicitly set dark theme
-            themeMode: settingsProvider.themeMode,
-            routerConfig: router,
-          );
-        },
-      ),
+    return MaterialApp.router(
+      title: 'Infected Instagram',
+      theme: darkTheme,
+      darkTheme: darkTheme,
+      themeMode: settings.themeMode,
+      routerConfig: router,
     );
   }
 }

@@ -3,8 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 import '../providers/profile_provider.dart';
-import 'package:infected_insta/features/call/screens/call_screen.dart';
-import 'package:infected_insta/features/call/models/call_model.dart';
+
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -76,7 +75,7 @@ class ProfileScreen extends ConsumerWidget {
                                       borderRadius: BorderRadius.circular(8),
                                     ),
                                   ),
-                                  child: const Text('Follow', style: TextStyle(color: Colors.white)),
+                                  child: const Text('Edit Profile', style: TextStyle(color: Colors.white)),
                                 ),
                               ),
                               const SizedBox(width: 8),
@@ -89,53 +88,7 @@ class ProfileScreen extends ConsumerWidget {
                                       borderRadius: BorderRadius.circular(8),
                                     ),
                                   ),
-                                  child: const Text('Message', style: TextStyle(color: Colors.black)),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              // Call buttons added for demo purposes
-                              Container(
-                                decoration: BoxDecoration(
-                                  border: Border.all(color: Colors.grey.shade300),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Row(
-                                  children: [
-                                    IconButton(
-                                      onPressed: () {
-                                        // For demo: call self (would be different user in real app)
-                                        Navigator.of(context).push(
-                                          MaterialPageRoute(
-                                            builder: (context) => CallScreen(
-                                              calleeId: user.userId,
-                                              calleeName: user.name,
-                                              calleeAvatar: user.avatarUrl,
-                                              callType: CallType.audio,
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                      icon: const Icon(Icons.call, color: Colors.black),
-                                      tooltip: 'Audio call',
-                                    ),
-                                    IconButton(
-                                      onPressed: () {
-                                        // For demo: video call self (would be different user in real app)
-                                        Navigator.of(context).push(
-                                          MaterialPageRoute(
-                                            builder: (context) => CallScreen(
-                                              calleeId: user.userId,
-                                              calleeName: user.name,
-                                              calleeAvatar: user.avatarUrl,
-                                              callType: CallType.video,
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                      icon: const Icon(Icons.videocam, color: Colors.black),
-                                      tooltip: 'Video call',
-                                    ),
-                                  ],
+                                  child: const Text('Share Profile', style: TextStyle(color: Colors.black)),
                                 ),
                               ),
                             ],
@@ -223,5 +176,57 @@ class _TabBarDelegate extends SliverPersistentHeaderDelegate {
   @override
   bool shouldRebuild(covariant SliverPersistentHeaderDelegate oldDelegate) {
     return false;
+  }
+}
+
+/// Story Highlights Screen
+class StoryHighlightsScreen extends StatelessWidget {
+  const StoryHighlightsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Story Highlights')),
+      body: const Center(child: Text('No highlights yet')),
+    );
+  }
+}
+
+/// Archive View Screen
+class ArchiveViewScreen extends StatelessWidget {
+  const ArchiveViewScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Archive')),
+      body: const Center(child: Text('No archived posts')),
+    );
+  }
+}
+
+/// Saved Posts Screen
+class SavedPostsScreen extends StatelessWidget {
+  const SavedPostsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Saved')),
+      body: const Center(child: Text('No saved posts')),
+    );
+  }
+}
+
+/// Tagged Posts Screen
+class TaggedPostsScreen extends StatelessWidget {
+  const TaggedPostsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Posts of you')),
+      body: const Center(child: Text('No tagged posts')),
+    );
   }
 }
