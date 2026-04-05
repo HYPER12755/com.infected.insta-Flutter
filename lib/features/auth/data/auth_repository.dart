@@ -6,21 +6,16 @@ class AuthRepository {
   final FirebaseAuth _auth;
   final FirebaseFirestore _firestore;
 
-  AuthRepository({
-    FirebaseAuth? auth,
-    FirebaseFirestore? firestore,
-  })  : _auth = auth ?? FirebaseAuth.instance,
-        _firestore = firestore ?? FirebaseFirestore.instance;
+  AuthRepository({FirebaseAuth? auth, FirebaseFirestore? firestore})
+    : _auth = auth ?? FirebaseAuth.instance,
+      _firestore = firestore ?? FirebaseFirestore.instance;
 
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
   User? get currentUser => _auth.currentUser;
 
   Future<void> signInWithEmailAndPassword(String email, String password) async {
-    await _auth.signInWithEmailAndPassword(
-      email: email,
-      password: password,
-    );
+    await _auth.signInWithEmailAndPassword(email: email, password: password);
   }
 
   Future<UserCredential> signUpWithEmailAndPassword({
@@ -68,19 +63,30 @@ class AuthRepository {
   }
 
   Future<void> signInWithGoogle() async {
-    final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
-    if (googleUser == null) {
-      // The user canceled the sign-in
+    // Use the new authenticate() method
+    try {
+      final GoogleSignInAccount googleUser = await GoogleSignIn.instance.authenticate();
+
+      // Get idToken from authentication
+      final GoogleSignInAuthentication auth = googleUser.authentication;
+      final String? idToken = auth.idToken;
+
+      // Get access token via authorizationClient
+      final scopes = <String>['email', 'profile'];
+      final GoogleSignInClientAuthorization? clientAuth = 
+          await googleUser.authorizationClient.authorizationForScopes(scopes);
+      final String? accessToken = clientAuth?.accessToken;
+
+      final OAuthCredential credential = GoogleAuthProvider.credential(
+        accessToken: accessToken,
+        idToken: idToken,
+      );
+
+      await _auth.signInWithCredential(credential);
+    } catch (e) {
+      // The user canceled the sign-in or an error occurred
       return;
     }
-
-    final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-    final OAuthCredential credential = GoogleAuthProvider.credential(
-      accessToken: googleAuth.accessToken,
-      idToken: googleAuth.idToken,
-    );
-
-    await _auth.signInWithCredential(credential);
   }
 
   Future<void> signInWithGitHub() async {
@@ -89,7 +95,7 @@ class AuthRepository {
   }
 
   Future<void> signOut() async {
-    await GoogleSignIn().signOut();
+    await GoogleSignIn.instance.signOut();
     await _auth.signOut();
   }
 }

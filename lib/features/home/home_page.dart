@@ -39,27 +39,27 @@ class _HomePageState extends State<HomePage> {
         showUnselectedLabels: false,
         items: const [
           BottomNavigationBarItem(
-            icon: Icon(FontAwesomeIcons.house),
+            icon: FaIcon(FontAwesomeIcons.house),
             label: 'Home',
           ),
           BottomNavigationBarItem(
-            icon: Icon(FontAwesomeIcons.magnifyingGlass),
+            icon: FaIcon(FontAwesomeIcons.magnifyingGlass),
             label: 'Search',
           ),
           BottomNavigationBarItem(
-            icon: Icon(FontAwesomeIcons.squarePlus),
+            icon: FaIcon(FontAwesomeIcons.squarePlus),
             label: 'Create',
           ),
           BottomNavigationBarItem(
-            icon: Icon(FontAwesomeIcons.clapperboard),
+            icon: FaIcon(FontAwesomeIcons.clapperboard),
             label: 'Reels',
           ),
           BottomNavigationBarItem(
-            icon: Icon(FontAwesomeIcons.message),
+            icon: FaIcon(FontAwesomeIcons.message),
             label: 'Messages',
           ),
           BottomNavigationBarItem(
-            icon: Icon(FontAwesomeIcons.circleUser),
+            icon: FaIcon(FontAwesomeIcons.circleUser),
             label: 'Profile',
           ),
         ],
@@ -86,7 +86,7 @@ class FeedPage extends StatelessWidget {
         actions: [
           IconButton(
             onPressed: () {},
-            icon: const Icon(FontAwesomeIcons.heart),
+            icon: const FaIcon(FontAwesomeIcons.heart),
           ),
           IconButton(
             onPressed: () {
@@ -95,7 +95,7 @@ class FeedPage extends StatelessWidget {
                 MaterialPageRoute(builder: (context) => const ChatScreen()),
               );
             },
-            icon: const Icon(FontAwesomeIcons.paperPlane),
+            icon: const FaIcon(FontAwesomeIcons.paperPlane),
           ),
         ],
       ),
@@ -173,7 +173,7 @@ class StoryCircle extends StatelessWidget {
             color: Colors.black,
           ),
           child: const Center(
-            child: Icon(FontAwesomeIcons.user, size: 30, color: Colors.white),
+            child: FaIcon(FontAwesomeIcons.user, size: 30, color: Colors.white),
           ),
         ),
         Positioned(

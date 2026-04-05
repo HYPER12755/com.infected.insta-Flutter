@@ -63,7 +63,7 @@ class _SignupPageState extends ConsumerState<SignupPage> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // Header
-          Icon(FontAwesomeIcons.wandMagicSparkles, size: 40, color: Theme.of(context).primaryColor),
+          FaIcon(FontAwesomeIcons.wandMagicSparkles, size: 40, color: Theme.of(context).primaryColor),
           const SizedBox(height: 20),
           Text(
             'Create an account',
@@ -111,7 +111,7 @@ class _SignupPageState extends ConsumerState<SignupPage> {
                   decoration: InputDecoration(
                     labelText: 'Password',
                     suffixIcon: IconButton(
-                      icon: Icon(_showPassword ? FontAwesomeIcons.eyeSlash : FontAwesomeIcons.eye, size: 18),
+                      icon: FaIcon(_showPassword ? FontAwesomeIcons.eyeSlash : FontAwesomeIcons.eye, size: 18),
                       onPressed: () => setState(() => _showPassword = !_showPassword),
                     ),
                   ),
