@@ -70,7 +70,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                 _navItem(1, FontAwesomeIcons.magnifyingGlass, 'Search'),
                 _addButton(),
                 _navItem(3, FontAwesomeIcons.play, 'Reels'),
-                _navItem(4, FontAwesomeIcons.comment, 'Messages'),
+                _navItem(4, FontAwesomeIcons.paperPlane, 'Messages'),
                 _navItem(5, FontAwesomeIcons.user, 'Profile'),
               ],
             ),
