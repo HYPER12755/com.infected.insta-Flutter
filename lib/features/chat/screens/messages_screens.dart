@@ -1,5 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:infected_insta/core/theme/instagram_theme.dart';
+import 'package:infected_insta/features/call/screens/call_screen.dart';
+import 'package:infected_insta/features/call/models/call_model.dart';
+import 'package:infected_insta/data/repositories/message_repository.dart';
+import 'package:infected_insta/data/repositories/user_repository.dart';
 
 /// Messages Inbox Screen
 class MessagesInboxScreen extends StatelessWidget {
@@ -7,17 +13,8 @@ class MessagesInboxScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Mock conversations
-    final conversations = List.generate(15, (index) {
-      return {
-        'id': index,
-        'username': 'user_${index + 1}',
-        'message': index % 2 == 0 ? 'Hey! How are you?' : 'Check out this post! 🔥',
-        'time': '${index + 1}h',
-        'unread': index < 3,
-        'avatar': String.fromCharCode(65 + index),
-      };
-    });
+    final messageRepo = MessageRepository();
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid ?? 'test_user';
 
     return Scaffold(
       backgroundColor: InstagramColors.darkBackground,
@@ -33,23 +30,91 @@ class MessagesInboxScreen extends StatelessWidget {
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const NewMessageScreen()),
+                MaterialPageRoute(
+                  builder: (context) => const NewMessageScreen(),
+                ),
               );
             },
           ),
         ],
       ),
-      body: ListView.builder(
-        itemCount: conversations.length,
-        itemBuilder: (context, index) {
-          final conv = conversations[index];
-          return _buildConversationTile(context, conv);
+      body: FutureBuilder<List<Map<String, dynamic>>>(
+        future: messageRepo.getConversations(currentUserId).then((result) {
+          return result.fold(
+            (error) => <Map<String, dynamic>>[],
+            (conversations) => conversations,
+          );
+        }),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (snapshot.hasError) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error_outline, size: 48),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Error loading conversations',
+                    style: TextStyle(color: Colors.grey[600]),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          final conversations = snapshot.data ?? [];
+
+          if (conversations.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.chat_bubble_outline,
+                    size: 64,
+                    color: Colors.grey[400],
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'No conversations yet',
+                    style: TextStyle(color: Colors.grey[600], fontSize: 16),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          return ListView.builder(
+            itemCount: conversations.length,
+            itemBuilder: (context, index) {
+              final conv = conversations[index];
+              return _buildConversationTile(context, conv);
+            },
+          );
         },
       ),
     );
   }
 
-  Widget _buildConversationTile(BuildContext context, Map<String, dynamic> conv) {
+  Widget _buildConversationTile(
+    BuildContext context,
+    Map<String, dynamic> conv,
+  ) {
+    // Handle both Firestore data and mock data formats
+    final String username =
+        conv['username'] ?? conv['otherUsername'] ?? 'Unknown';
+    final String message = conv['message'] ?? conv['lastMessage'] ?? '';
+    final String time =
+        conv['time'] ?? _formatTimestamp(conv['lastMessageTime']);
+    final bool unread = conv['unread'] ?? false;
+    final String avatarLetter = username.isNotEmpty
+        ? username[0].toUpperCase()
+        : '?';
+
     return ListTile(
       onTap: () {
         Navigator.push(
@@ -57,7 +122,7 @@ class MessagesInboxScreen extends StatelessWidget {
           MaterialPageRoute(
             builder: (context) => ConversationChatScreen(
               conversationId: conv['id'].toString(),
-              username: conv['username'],
+              username: username,
             ),
           ),
         );
@@ -68,11 +133,11 @@ class MessagesInboxScreen extends StatelessWidget {
             radius: 24,
             backgroundColor: InstagramColors.primary,
             child: Text(
-              conv['avatar'],
+              avatarLetter,
               style: const TextStyle(color: Colors.white),
             ),
           ),
-          if (conv['unread'])
+          if (unread)
             const Positioned(
               right: 0,
               bottom: 0,
@@ -84,17 +149,19 @@ class MessagesInboxScreen extends StatelessWidget {
         children: [
           Expanded(
             child: Text(
-              conv['username'],
+              username,
               style: TextStyle(
                 color: InstagramColors.darkText,
-                fontWeight: conv['unread'] ? FontWeight.w700 : FontWeight.w500,
+                fontWeight: unread ? FontWeight.w700 : FontWeight.w500,
               ),
             ),
           ),
           Text(
-            conv['time'],
+            time,
             style: TextStyle(
-              color: conv['unread'] ? InstagramColors.primary : InstagramColors.darkTextSecondary,
+              color: unread
+                  ? InstagramColors.primary
+                  : InstagramColors.darkTextSecondary,
               fontSize: 12,
             ),
           ),
@@ -104,16 +171,18 @@ class MessagesInboxScreen extends StatelessWidget {
         children: [
           Expanded(
             child: Text(
-              conv['message'],
+              message,
               style: TextStyle(
-                color: conv['unread'] ? InstagramColors.darkText : InstagramColors.darkTextSecondary,
-                fontWeight: conv['unread'] ? FontWeight.w500 : FontWeight.normal,
+                color: unread
+                    ? InstagramColors.darkText
+                    : InstagramColors.darkTextSecondary,
+                fontWeight: unread ? FontWeight.w500 : FontWeight.normal,
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          if (conv['unread'])
+          if (unread)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
               decoration: BoxDecoration(
@@ -130,6 +199,21 @@ class MessagesInboxScreen extends StatelessWidget {
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
     );
   }
+
+  String _formatTimestamp(dynamic timestamp) {
+    if (timestamp == null) return '';
+    if (timestamp is String) return timestamp;
+    if (timestamp is Timestamp) {
+      final now = DateTime.now();
+      final diff = now.difference(timestamp.toDate());
+      if (diff.inMinutes < 1) return 'Now';
+      if (diff.inHours < 1) return '${diff.inMinutes}m';
+      if (diff.inDays < 1) return '${diff.inHours}h';
+      if (diff.inDays < 7) return '${diff.inDays}d';
+      return '${(diff.inDays / 7).floor()}w';
+    }
+    return '';
+  }
 }
 
 /// Conversation Chat Screen
@@ -137,7 +221,7 @@ class ConversationChatScreen extends StatefulWidget {
   final String conversationId;
   final String username;
   final String? userAvatar;
-  
+
   const ConversationChatScreen({
     super.key,
     required this.conversationId,
@@ -152,22 +236,24 @@ class ConversationChatScreen extends StatefulWidget {
 class _ConversationChatScreenState extends State<ConversationChatScreen> {
   final TextEditingController _messageController = TextEditingController();
   bool _isSending = false;
-  
-  final List<Map<String, dynamic>> _messages = List.generate(20, (index) {
-    return {
-      'id': index,
-      'text': index % 2 == 0 
-          ? 'Hey there! How\'s it going?' 
-          : 'Doing great! Thanks for asking 😊',
-      'isMe': index % 2 == 0,
-      'time': '${index + 1}:${(index * 7).toString().padLeft(2, '0')}',
-    };
-  });
+  final MessageRepository _messageRepo = MessageRepository();
+  final String _currentUserId =
+      FirebaseAuth.instance.currentUser?.uid ?? 'test_user';
 
   @override
   void dispose() {
     _messageController.dispose();
     super.dispose();
+  }
+
+  String _formatMessageTime(dynamic timestamp) {
+    if (timestamp == null) return '';
+    if (timestamp is String) return timestamp;
+    if (timestamp is Timestamp) {
+      final dt = timestamp.toDate();
+      return '${dt.hour}:${dt.minute.toString().padLeft(2, '0')}';
+    }
+    return '';
   }
 
   @override
@@ -199,26 +285,106 @@ class _ConversationChatScreenState extends State<ConversationChatScreen> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.videocam_outlined),
-            onPressed: () {},
+            icon: const Icon(Icons.call),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => CallScreen(
+                    calleeId: widget.conversationId,
+                    calleeName: widget.username,
+                    callType: CallType.audio,
+                  ),
+                ),
+              );
+            },
           ),
           IconButton(
-            icon: const Icon(Icons.info_outline),
-            onPressed: () {},
+            icon: const Icon(Icons.videocam_outlined),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => CallScreen(
+                    calleeId: widget.conversationId,
+                    calleeName: widget.username,
+                    callType: CallType.video,
+                  ),
+                ),
+              );
+            },
           ),
+          IconButton(icon: const Icon(Icons.info_outline), onPressed: () {}),
         ],
       ),
       body: Column(
         children: [
           // Messages list
           Expanded(
-            child: ListView.builder(
-              reverse: false,
-              padding: const EdgeInsets.all(16),
-              itemCount: _messages.length,
-              itemBuilder: (context, index) {
-                final msg = _messages[index];
-                return _buildMessageBubble(msg);
+            child: StreamBuilder<List<Map<String, dynamic>>>(
+              stream: _messageRepo
+                  .getMessages(widget.conversationId)
+                  .map(
+                    (result) => result.fold(
+                      (error) => <Map<String, dynamic>>[],
+                      (messages) => messages,
+                    ),
+                  ),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.error_outline, size: 48),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Error loading messages',
+                          style: TextStyle(color: Colors.grey[600]),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                final messages = snapshot.data ?? [];
+
+                if (messages.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.chat_bubble_outline,
+                          size: 64,
+                          color: Colors.grey[400],
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'No messages yet',
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                return ListView.builder(
+                  reverse: false,
+                  padding: const EdgeInsets.all(16),
+                  itemCount: messages.length,
+                  itemBuilder: (context, index) {
+                    final msg = messages[index];
+                    return _buildMessageBubble(msg);
+                  },
+                );
               },
             ),
           ),
@@ -233,7 +399,9 @@ class _ConversationChatScreenState extends State<ConversationChatScreen> {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
-        mainAxisAlignment: msg['isMe'] ? MainAxisAlignment.end : MainAxisAlignment.start,
+        mainAxisAlignment: msg['isMe']
+            ? MainAxisAlignment.end
+            : MainAxisAlignment.start,
         children: [
           Container(
             constraints: BoxConstraints(
@@ -241,7 +409,9 @@ class _ConversationChatScreenState extends State<ConversationChatScreen> {
             ),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: BoxDecoration(
-              color: msg['isMe'] ? InstagramColors.primary : InstagramColors.darkSurface,
+              color: msg['isMe']
+                  ? InstagramColors.primary
+                  : InstagramColors.darkSurface,
               borderRadius: BorderRadius.circular(20),
             ),
             child: Column(
@@ -250,7 +420,9 @@ class _ConversationChatScreenState extends State<ConversationChatScreen> {
                 Text(
                   msg['text'],
                   style: TextStyle(
-                    color: msg['isMe'] ? Colors.white : InstagramColors.darkText,
+                    color: msg['isMe']
+                        ? Colors.white
+                        : InstagramColors.darkText,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -260,13 +432,19 @@ class _ConversationChatScreenState extends State<ConversationChatScreen> {
                     Text(
                       msg['time'],
                       style: TextStyle(
-                        color: msg['isMe'] ? Colors.white70 : InstagramColors.darkTextSecondary,
+                        color: msg['isMe']
+                            ? Colors.white70
+                            : InstagramColors.darkTextSecondary,
                         fontSize: 10,
                       ),
                     ),
                     if (msg['isMe']) ...[
                       const SizedBox(width: 4),
-                      const Icon(Icons.done_all, size: 14, color: Colors.white70),
+                      const Icon(
+                        Icons.done_all,
+                        size: 14,
+                        color: Colors.white70,
+                      ),
                     ],
                   ],
                 ),
@@ -290,12 +468,18 @@ class _ConversationChatScreenState extends State<ConversationChatScreen> {
           children: [
             // Camera button
             IconButton(
-              icon: const Icon(Icons.camera_alt_outlined, color: InstagramColors.darkText),
+              icon: const Icon(
+                Icons.camera_alt_outlined,
+                color: InstagramColors.darkText,
+              ),
               onPressed: () {},
             ),
             // Gallery button
             IconButton(
-              icon: const Icon(Icons.photo_library_outlined, color: InstagramColors.darkText),
+              icon: const Icon(
+                Icons.photo_library_outlined,
+                color: InstagramColors.darkText,
+              ),
               onPressed: () {},
             ),
             // Text input
@@ -313,14 +497,19 @@ class _ConversationChatScreenState extends State<ConversationChatScreen> {
                         controller: _messageController,
                         decoration: const InputDecoration(
                           hintText: 'Message...',
-                          hintStyle: TextStyle(color: InstagramColors.darkTextSecondary),
+                          hintStyle: TextStyle(
+                            color: InstagramColors.darkTextSecondary,
+                          ),
                           border: InputBorder.none,
                         ),
                         style: const TextStyle(color: InstagramColors.darkText),
                       ),
                     ),
                     // Emoji button
-                    const Icon(Icons.emoji_emotions_outlined, color: InstagramColors.darkTextSecondary),
+                    const Icon(
+                      Icons.emoji_emotions_outlined,
+                      color: InstagramColors.darkTextSecondary,
+                    ),
                   ],
                 ),
               ),
@@ -342,23 +531,22 @@ class _ConversationChatScreenState extends State<ConversationChatScreen> {
     );
   }
 
-  void _sendMessage() {
+  void _sendMessage() async {
     if (_messageController.text.trim().isEmpty) return;
-    
+
     setState(() => _isSending = true);
-    
-    // Add message to list
-    setState(() {
-      _messages.add({
-        'id': _messages.length,
-        'text': _messageController.text,
-        'isMe': true,
-        'time': 'Now',
-      });
+
+    final messageText = _messageController.text.trim();
+
+    // Send message via repository
+    await _messageRepo.sendMessage(widget.conversationId, {
+      'text': messageText,
+      'senderId': _currentUserId,
+      'isRead': false,
     });
-    
+
     _messageController.clear();
-    
+
     Future.delayed(const Duration(milliseconds: 300), () {
       if (mounted) setState(() => _isSending = false);
     });
@@ -376,14 +564,42 @@ class NewMessageScreen extends StatefulWidget {
 class _NewMessageScreenState extends State<NewMessageScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
+  List<Map<String, dynamic>> _users = [];
+  bool _isLoading = true;
 
-  final List<Map<String, dynamic>> _allUsers = List.generate(30, (index) {
-    return {
-      'id': index,
-      'username': 'user_${index + 1}',
-      'avatar': String.fromCharCode(65 + (index % 26)),
-    };
-  });
+  @override
+  void initState() {
+    super.initState();
+    _loadUsers();
+  }
+
+  Future<void> _loadUsers() async {
+    try {
+      final userRepo = UserRepository();
+      final currentUserId = userRepo.getCurrentUserId();
+
+      if (currentUserId != null) {
+        final result = await userRepo.getSuggestedUsers(currentUserId);
+        result.fold(
+          (error) {
+            if (mounted) setState(() => _isLoading = false);
+          },
+          (users) {
+            if (mounted) {
+              setState(() {
+                _users = users;
+                _isLoading = false;
+              });
+            }
+          },
+        );
+      } else {
+        if (mounted) setState(() => _isLoading = false);
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
   @override
   void dispose() {
@@ -392,10 +608,14 @@ class _NewMessageScreenState extends State<NewMessageScreen> {
   }
 
   List<Map<String, dynamic>> get _filteredUsers {
-    if (_searchQuery.isEmpty) return _allUsers;
-    return _allUsers.where((user) => 
-      user['username'].toLowerCase().contains(_searchQuery.toLowerCase())
-    ).toList();
+    if (_searchQuery.isEmpty) return _users;
+    return _users
+        .where(
+          (user) => (user['username'] ?? '').toLowerCase().contains(
+            _searchQuery.toLowerCase(),
+          ),
+        )
+        .toList();
   }
 
   @override
@@ -423,7 +643,10 @@ class _NewMessageScreenState extends State<NewMessageScreen> {
               onChanged: (value) => setState(() => _searchQuery = value),
               decoration: InputDecoration(
                 hintText: 'Search people...',
-                prefixIcon: const Icon(Icons.search, color: InstagramColors.darkTextSecondary),
+                prefixIcon: const Icon(
+                  Icons.search,
+                  color: InstagramColors.darkTextSecondary,
+                ),
                 filled: true,
                 fillColor: InstagramColors.darkSurface,
                 border: OutlineInputBorder(
@@ -451,35 +674,76 @@ class _NewMessageScreenState extends State<NewMessageScreen> {
             ),
           // User list
           Expanded(
-            child: ListView.builder(
-              itemCount: _filteredUsers.length,
-              itemBuilder: (context, index) {
-                final user = _filteredUsers[index];
-                return ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: InstagramColors.primary,
-                    child: Text(user['avatar'], style: const TextStyle(color: Colors.white)),
-                  ),
-                  title: Text(
-                    user['username'],
-                    style: const TextStyle(color: InstagramColors.darkText, fontWeight: FontWeight.w500),
-                  ),
-                  trailing: const Icon(Icons.message_outlined, color: InstagramColors.primary),
-                  onTap: () {
-                    // Start conversation
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => ConversationChatScreen(
-                          conversationId: user['id'].toString(),
-                          username: user['username'],
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _filteredUsers.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.person_search,
+                              size: 64,
+                              color: InstagramColors.darkText.withValues(alpha: 0.5),
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              _searchQuery.isEmpty
+                                  ? 'No users found'
+                                  : 'No results for "$_searchQuery"',
+                              style: TextStyle(
+                                color: InstagramColors.darkText.withValues(alpha: 0.7),
+                              ),
+                            ),
+                          ],
                         ),
+                      )
+                    : ListView.builder(
+                        itemCount: _filteredUsers.length,
+                        itemBuilder: (context, index) {
+                          final user = _filteredUsers[index];
+                          final avatarUrl = user['profilePicture'] as String?;
+                          final username = user['username'] ?? user['displayName'] ?? 'User';
+                          
+                          return ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor: InstagramColors.primary,
+                              backgroundImage: avatarUrl != null
+                                  ? NetworkImage(avatarUrl)
+                                  : null,
+                              child: avatarUrl == null
+                                  ? Text(
+                                      username.isNotEmpty ? username[0].toUpperCase() : '?',
+                                      style: const TextStyle(color: Colors.white),
+                                    )
+                                  : null,
+                            ),
+                            title: Text(
+                              username,
+                              style: const TextStyle(
+                                color: InstagramColors.darkText,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            trailing: const Icon(
+                              Icons.message_outlined,
+                              color: InstagramColors.primary,
+                            ),
+                            onTap: () {
+                              // Start conversation
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => ConversationChatScreen(
+                                    conversationId: user['id'].toString(),
+                                    username: username,
+                                  ),
+                                ),
+                              );
+                            },
+                          );
+                        },
                       ),
-                    );
-                  },
-                );
-              },
-            ),
           ),
         ],
       ),
@@ -507,7 +771,11 @@ class StoryShareScreen extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.send_outlined, size: 60, color: InstagramColors.darkTextSecondary),
+            const Icon(
+              Icons.send_outlined,
+              size: 60,
+              color: InstagramColors.darkTextSecondary,
+            ),
             const SizedBox(height: 16),
             const Text(
               'Share to your story',
@@ -532,60 +800,143 @@ class StoryShareScreen extends StatelessWidget {
 }
 
 /// Message Requests Screen
-class MessageRequestsScreen extends StatelessWidget {
+class MessageRequestsScreen extends StatefulWidget {
   const MessageRequestsScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    // Mock requests
-    final requests = List.generate(5, (index) {
-      return {
-        'id': index,
-        'username': 'user_req_${index + 1}',
-        'message': 'Hey! I wanted to connect with you.',
-        'time': '${index + 1}d',
-      };
-    });
+  State<MessageRequestsScreen> createState() => _MessageRequestsScreenState();
+}
 
+class _MessageRequestsScreenState extends State<MessageRequestsScreen> {
+  List<Map<String, dynamic>> _requests = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRequests();
+  }
+
+  Future<void> _loadRequests() async {
+    try {
+      final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+      if (currentUserId == null) {
+        if (mounted) setState(() => _isLoading = false);
+        return;
+      }
+
+      // Fetch message requests from Firestore
+      final snapshot = await FirebaseFirestore.instance
+          .collection('message_requests')
+          .where('receiverId', isEqualTo: currentUserId)
+          .where('status', isEqualTo: 'pending')
+          .get();
+
+      if (mounted) {
+        setState(() {
+          _requests = snapshot.docs.map((doc) {
+            final data = doc.data();
+            return {'id': doc.id, ...data};
+          }).toList();
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: InstagramColors.darkBackground,
       appBar: AppBar(
         backgroundColor: InstagramColors.darkBackground,
         title: const Text('Message Requests'),
       ),
-      body: ListView.builder(
-        itemCount: requests.length,
-        itemBuilder: (context, index) {
-          final req = requests[index];
-          return ListTile(
-            leading: CircleAvatar(
-              backgroundColor: InstagramColors.primary,
-              child: Text(req['username']?.toString().isNotEmpty == true ? req['username'].toString()[8].toUpperCase() : '?'),
-            ),
-            title: Text(
-              req['username']?.toString() ?? '',
-              style: const TextStyle(color: InstagramColors.darkText, fontWeight: FontWeight.w600),
-            ),
-            subtitle: Text(
-              req['message']?.toString() ?? '',
-              style: const TextStyle(color: InstagramColors.darkTextSecondary),
-            ),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextButton(
-                  onPressed: () {},
-                  child: const Text('Accept', style: TextStyle(color: InstagramColors.primary)),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _requests.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.mail_outline,
+                        size: 64,
+                        color: InstagramColors.darkText.withValues(alpha: 0.5),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'No message requests',
+                        style: TextStyle(
+                          color: InstagramColors.darkText.withValues(alpha: 0.7),
+                          fontSize: 16,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              : ListView.builder(
+                  itemCount: _requests.length,
+                  itemBuilder: (context, index) {
+                    final req = _requests[index];
+                    return ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: InstagramColors.primary,
+                        child: Text(
+                          req['username']?.toString().isNotEmpty == true
+                              ? req['username'].toString()[0].toUpperCase()
+                              : '?',
+                        ),
+                      ),
+                      title: Text(
+                        req['username']?.toString() ?? 'Unknown',
+                        style: const TextStyle(
+                          color: InstagramColors.darkText,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      subtitle: Text(
+                        req['message']?.toString() ?? '',
+                        style: const TextStyle(color: InstagramColors.darkTextSecondary),
+                      ),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          TextButton(
+                            onPressed: () async {
+                              // Accept request
+                              await FirebaseFirestore.instance
+                                  .collection('message_requests')
+                                  .doc(req['id'])
+                                  .update({'status': 'accepted'});
+                              _loadRequests();
+                            },
+                            child: const Text(
+                              'Accept',
+                              style: TextStyle(color: InstagramColors.primary),
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: () async {
+                              // Decline request
+                              await FirebaseFirestore.instance
+                                  .collection('message_requests')
+                                  .doc(req['id'])
+                                  .update({'status': 'declined'});
+                              _loadRequests();
+                            },
+                            child: const Text(
+                              'Decline',
+                              style: TextStyle(color: InstagramColors.darkTextSecondary),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
                 ),
-                TextButton(
-                  onPressed: () {},
-                  child: const Text('Decline', style: TextStyle(color: InstagramColors.darkTextSecondary)),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
     );
   }
 }

@@ -15,14 +15,22 @@ class ProfileScreen extends StatelessWidget {
 
         return Scaffold(
           appBar: AppBar(
-            title: Text(profile.username, style: const TextStyle(fontWeight: FontWeight.bold)),
+            title: Text(
+              profile.username,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
             actions: [
-              IconButton(onPressed: () {}, icon: const Icon(Icons.add_box_outlined)),
+              IconButton(
+                onPressed: () {},
+                icon: const Icon(Icons.add_box_outlined),
+              ),
               IconButton(
                 onPressed: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => const SettingsScreen()),
+                    MaterialPageRoute(
+                      builder: (context) => const SettingsScreen(),
+                    ),
                   );
                 },
                 icon: const Icon(Icons.settings),
@@ -58,7 +66,10 @@ class ProfileScreen extends StatelessWidget {
                             ],
                           ),
                           const SizedBox(height: 10),
-                          Text(profile.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                          Text(
+                            profile.name,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
                           Text(profile.bio),
                           const SizedBox(height: 20),
                           Row(
@@ -69,7 +80,8 @@ class ProfileScreen extends StatelessWidget {
                                     Navigator.push(
                                       context,
                                       MaterialPageRoute(
-                                        builder: (context) => const EditProfileScreen(),
+                                        builder: (context) =>
+                                            const EditProfileScreen(),
                                       ),
                                     );
                                   },
@@ -86,7 +98,10 @@ class ProfileScreen extends StatelessWidget {
                               const SizedBox(width: 8),
                               OutlinedButton(
                                 onPressed: () {},
-                                child: const Icon(Icons.person_add_outlined, size: 20),
+                                child: const Icon(
+                                  Icons.person_add_outlined,
+                                  size: 20,
+                                ),
                               ),
                             ],
                           ),
@@ -107,18 +122,17 @@ class ProfileScreen extends StatelessWidget {
                   Expanded(
                     child: TabBarView(
                       children: [
+                        // No mock posts - fetch from Firestore in production
                         GridView.builder(
-                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 3,
-                            crossAxisSpacing: 2,
-                            mainAxisSpacing: 2,
-                          ),
-                          itemCount: 10, // Replace with actual user posts
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 3,
+                                crossAxisSpacing: 2,
+                                mainAxisSpacing: 2,
+                              ),
+                          itemCount: 0, // Empty - no mock data
                           itemBuilder: (context, index) {
-                            return Image.network(
-                              'https://picsum.photos/seed/${index + 1}/200',
-                              fit: BoxFit.cover,
-                            );
+                            return const SizedBox.shrink();
                           },
                         ),
                         const Center(child: Text('Tagged Posts Go Here')),
@@ -139,7 +153,10 @@ class ProfileScreen extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        Text(
+          value,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+        ),
         const SizedBox(height: 4),
         Text(label, style: const TextStyle(fontSize: 14)),
       ],

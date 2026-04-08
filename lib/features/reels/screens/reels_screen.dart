@@ -174,16 +174,8 @@ class AudioEffectsPicker extends StatelessWidget {
 
   AudioEffectsPicker({super.key, required this.onAudioSelected});
 
-  // Mock audio/trending sounds
-  final List<Map<String, dynamic>> _audios = List.generate(20, (index) {
-    return {
-      'id': index,
-      'title': index % 2 == 0 ? 'Trending Sound $index' : 'Original Audio $index',
-      'artist': 'Artist ${index + 1}',
-      'uses': '${(index + 1) * 1234}k',
-      'duration': '${(index % 30) + 15}s',
-    };
-  });
+  // No mock data - empty list for production
+  final List<Map<String, dynamic>> _audios = [];
 
   @override
   Widget build(BuildContext context) {

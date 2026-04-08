@@ -1,17 +1,84 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:uuid/uuid.dart';
+
 import 'package:infected_insta/core/theme/instagram_theme.dart';
 
 /// Create Post Screen - Main create post UI
-class CreatePostScreen extends StatefulWidget {
+class CreatePostScreen extends ConsumerStatefulWidget {
   const CreatePostScreen({super.key});
 
   @override
-  State<CreatePostScreen> createState() => _CreatePostScreenState();
+  ConsumerState<CreatePostScreen> createState() => _CreatePostScreenState();
 }
 
-class _CreatePostScreenState extends State<CreatePostScreen> {
+class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
   final TextEditingController _captionController = TextEditingController();
   bool _isPosting = false;
+  XFile? _selectedImage;
+
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(source: ImageSource.gallery);
+    if (picked != null) {
+      setState(() => _selectedImage = picked);
+    }
+  }
+
+  Future<void> _uploadPost() async {
+    if (_selectedImage == null || _captionController.text.trim().isEmpty) {
+      return;
+    }
+
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    setState(() => _isPosting = true);
+
+    try {
+      // Upload image to Firebase Storage
+      final postId = const Uuid().v4();
+      final storageRef = FirebaseStorage.instance
+          .ref()
+          .child('posts')
+          .child(postId);
+      final uploadTask = await storageRef.putFile(File(_selectedImage!.path));
+      final imageUrl = await uploadTask.ref.getDownloadURL();
+
+      // Save post to Firestore
+      await FirebaseFirestore.instance.collection('posts').add({
+        'authorId': user.uid,
+        'username': user.displayName ?? user.email?.split('@').first,
+        'userAvatar': user.photoURL ?? '',
+        'imageUrl': imageUrl,
+        'caption': _captionController.text.trim(),
+        'likes': 0,
+        'likedBy': [],
+        'commentsCount': 0,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      if (mounted) {
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isPosting = false);
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -149,26 +216,11 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   }
 
   void _openGallery() {
-    // TODO: Implement image picker
-    showModalBottomSheet(
-      context: context,
-      builder: (context) => const GalleryPickerSheet(),
-    );
+    _pickImage();
   }
 
-  void _createPost() async {
-    if (_captionController.text.trim().isEmpty) return;
-
-    setState(() => _isPosting = true);
-
-    // TODO: Upload post to Firebase
-
-    await Future.delayed(const Duration(seconds: 2));
-
-    if (mounted) {
-      Navigator.pop(context);
-      // Show success
-    }
+  void _createPost() {
+    _uploadPost();
   }
 }
 

@@ -3,7 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 import '../providers/profile_provider.dart';
-
+import 'package:infected_insta/features/settings/presentation/settings_screen.dart';
+import 'package:infected_insta/features/profile/presentation/edit_profile_screen.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -14,15 +15,22 @@ class ProfileScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(profile.when(
-          data: (user) => user.username,
-          loading: () => 'Profile',
-          error: (error, stackTrace) => 'Profile',
-        )),
+        title: Text(
+          profile.when(
+            data: (user) => user.username,
+            loading: () => 'Profile',
+            error: (error, stackTrace) => 'Profile',
+          ),
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.menu),
-            onPressed: () {},
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const SettingsScreen()),
+              );
+            },
           ),
         ],
       ),
@@ -46,21 +54,38 @@ class ProfileScreen extends ConsumerWidget {
                             children: [
                               CircleAvatar(
                                 radius: 40,
-                                backgroundImage: CachedNetworkImageProvider(user.avatarUrl),
+                                backgroundImage: CachedNetworkImageProvider(
+                                  user.avatarUrl,
+                                ),
                               ),
                               Row(
                                 children: [
-                                  _buildStatColumn('Posts', user.posts.toString()),
+                                  _buildStatColumn(
+                                    'Posts',
+                                    user.posts.toString(),
+                                  ),
                                   const SizedBox(width: 24),
-                                  _buildStatColumn('Followers', user.followers.toString()),
+                                  _buildStatColumn(
+                                    'Followers',
+                                    user.followers.toString(),
+                                  ),
                                   const SizedBox(width: 24),
-                                  _buildStatColumn('Following', user.following.toString()),
+                                  _buildStatColumn(
+                                    'Following',
+                                    user.following.toString(),
+                                  ),
                                 ],
                               ),
                             ],
                           ),
                           const SizedBox(height: 12),
-                          Text(user.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                          Text(
+                            user.name,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
                           const SizedBox(height: 4),
                           Text(user.bio, style: const TextStyle(fontSize: 14)),
                           const SizedBox(height: 16),
@@ -68,14 +93,25 @@ class ProfileScreen extends ConsumerWidget {
                             children: [
                               Expanded(
                                 child: ElevatedButton(
-                                  onPressed: () {},
+                                  onPressed: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) =>
+                                            const EditProfileScreen(),
+                                      ),
+                                    );
+                                  },
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: Colors.blue,
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(8),
                                     ),
                                   ),
-                                  child: const Text('Edit Profile', style: TextStyle(color: Colors.white)),
+                                  child: const Text(
+                                    'Edit Profile',
+                                    style: TextStyle(color: Colors.white),
+                                  ),
                                 ),
                               ),
                               const SizedBox(width: 8),
@@ -83,12 +119,17 @@ class ProfileScreen extends ConsumerWidget {
                                 child: OutlinedButton(
                                   onPressed: () {},
                                   style: OutlinedButton.styleFrom(
-                                    side: BorderSide(color: Colors.grey.shade300),
+                                    side: BorderSide(
+                                      color: Colors.grey.shade300,
+                                    ),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(8),
                                     ),
                                   ),
-                                  child: const Text('Share Profile', style: TextStyle(color: Colors.black)),
+                                  child: const Text(
+                                    'Share Profile',
+                                    style: TextStyle(color: Colors.black),
+                                  ),
                                 ),
                               ),
                             ],
@@ -108,20 +149,17 @@ class ProfileScreen extends ConsumerWidget {
               body: TabBarView(
                 children: [
                   GridView.builder(
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 3,
-                      crossAxisSpacing: 2,
-                      mainAxisSpacing: 2,
-                    ),
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 3,
+                          crossAxisSpacing: 2,
+                          mainAxisSpacing: 2,
+                        ),
+                    // No mock posts in production - use user.posts from Firestore
                     itemCount: user.posts,
                     itemBuilder: (context, index) {
-                      return CachedNetworkImage(
-                        imageUrl: 'https://picsum.photos/seed/${user.username}/$index/200/200',
-                        fit: BoxFit.cover,
-                        placeholder: (context, url) => Container(
-                          color: Colors.grey[300],
-                        ),
-                      );
+                      // In production, posts would be fetched from Firestore
+                      return const SizedBox.shrink();
                     },
                   ),
                   const Center(child: Text('Tagged Posts')),
@@ -141,7 +179,10 @@ class ProfileScreen extends ConsumerWidget {
         mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
+          Text(
+            value,
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+          ),
           const SizedBox(height: 4),
           Text(label, style: const TextStyle(color: Colors.grey, fontSize: 14)),
         ],
@@ -152,7 +193,11 @@ class ProfileScreen extends ConsumerWidget {
 
 class _TabBarDelegate extends SliverPersistentHeaderDelegate {
   @override
-  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
     return Container(
       color: Theme.of(context).scaffoldBackgroundColor,
       child: TabBar(

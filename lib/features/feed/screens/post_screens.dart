@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:infected_insta/core/theme/instagram_theme.dart';
 
 /// Comments Sheet - Bottom sheet for post comments
@@ -15,22 +17,8 @@ class _CommentsSheetState extends State<CommentsSheet> {
   final TextEditingController _commentController = TextEditingController();
   bool _isSending = false;
 
-  // Mock comments
-  final List<Map<String, dynamic>> _comments = List.generate(10, (index) {
-    return {
-      'id': index,
-      'username': 'user_${index + 1}',
-      'comment':
-          'This is comment number ${index + 1}. Great post! ${index % 3 == 0
-              ? '🔥'
-              : index % 2 == 0
-              ? '❤️'
-              : ''}',
-      'time': '${index + 1}h',
-      'likes': index * 12,
-      'isLiked': false,
-    };
-  });
+  // No mock comments - empty list for production
+  final List<Map<String, dynamic>> _comments = [];
 
   @override
   void dispose() {
@@ -230,16 +218,47 @@ class _CommentsSheetState extends State<CommentsSheet> {
                 : const Icon(Icons.send, color: InstagramColors.primary),
             onPressed: _isSending
                 ? null
-                : () {
+                : () async {
                     if (_commentController.text.trim().isNotEmpty) {
                       setState(() => _isSending = true);
-                      // Send comment logic
-                      Future.delayed(const Duration(milliseconds: 500), () {
-                        if (mounted) {
-                          setState(() => _isSending = false);
+                      try {
+                        final user = FirebaseAuth.instance.currentUser;
+                        if (user != null) {
+                          // Add comment to Firestore
+                          await FirebaseFirestore.instance
+                              .collection('posts')
+                              .doc(widget.postId)
+                              .collection('comments')
+                              .add({
+                                'userId': user.uid,
+                                'username':
+                                    user.displayName ??
+                                    user.email?.split('@').first,
+                                'userAvatar': user.photoURL ?? '',
+                                'text': _commentController.text.trim(),
+                                'createdAt': FieldValue.serverTimestamp(),
+                              });
+
+                          // Update comment count
+                          await FirebaseFirestore.instance
+                              .collection('posts')
+                              .doc(widget.postId)
+                              .update({
+                                'commentsCount': FieldValue.increment(1),
+                              });
+
                           _commentController.clear();
                         }
-                      });
+                      } catch (e) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(
+                            context,
+                          ).showSnackBar(SnackBar(content: Text('Error: $e')));
+                        }
+                      }
+                      if (mounted) {
+                        setState(() => _isSending = false);
+                      }
                     }
                   },
           ),
@@ -466,7 +485,8 @@ class ShareSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final contacts = List.generate(8, (index) => 'user_$index');
+    // No mock contacts - empty list for production
+    final contacts = <String>[];
 
     return Container(
       height: MediaQuery.of(context).size.height * 0.5,

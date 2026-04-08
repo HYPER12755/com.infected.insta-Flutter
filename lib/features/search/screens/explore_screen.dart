@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:infected_insta/core/theme/instagram_theme.dart';
+import 'package:infected_insta/data/repositories/post_repository.dart';
+import 'package:infected_insta/data/repositories/user_repository.dart';
 
 /// Explore Grid Screen - 3-column image grid like Instagram
 class ExploreScreen extends StatefulWidget {
@@ -12,15 +14,37 @@ class ExploreScreen extends StatefulWidget {
 class _ExploreScreenState extends State<ExploreScreen> {
   final TextEditingController _searchController = TextEditingController();
   bool _isSearching = false;
+  final UserRepository _userRepository = UserRepository();
+  List<Map<String, dynamic>> _exploreItems = [];
+  bool _isLoadingPosts = true;
 
-  // Mock data for explore grid
-  final List<Map<String, dynamic>> _exploreItems = List.generate(30, (index) {
-    return {
-      'id': index,
-      'type': index % 5 == 0 ? 'reel' : 'post',
-      'likes': '${(index * 1234).clamp(100, 999999)}',
-    };
-  });
+  @override
+  void initState() {
+    super.initState();
+    _loadExplorePosts();
+  }
+
+  Future<void> _loadExplorePosts() async {
+    try {
+      final postRepo = PostRepository();
+      final result = await postRepo.getPosts();
+      result.fold(
+        (error) {
+          if (mounted) setState(() => _isLoadingPosts = false);
+        },
+        (posts) {
+          if (mounted) {
+            setState(() {
+              _exploreItems = posts;
+              _isLoadingPosts = false;
+            });
+          }
+        },
+      );
+    } catch (e) {
+      if (mounted) setState(() => _isLoadingPosts = false);
+    }
+  }
 
   @override
   void dispose() {
@@ -45,10 +69,16 @@ class _ExploreScreenState extends State<ExploreScreen> {
                 },
                 decoration: InputDecoration(
                   hintText: 'Search',
-                  prefixIcon: const Icon(Icons.search, color: InstagramColors.darkTextSecondary),
+                  prefixIcon: const Icon(
+                    Icons.search,
+                    color: InstagramColors.darkTextSecondary,
+                  ),
                   suffixIcon: _isSearching
                       ? IconButton(
-                          icon: const Icon(Icons.clear, color: InstagramColors.darkTextSecondary),
+                          icon: const Icon(
+                            Icons.clear,
+                            color: InstagramColors.darkTextSecondary,
+                          ),
                           onPressed: () {
                             _searchController.clear();
                             setState(() => _isSearching = false);
@@ -76,67 +106,136 @@ class _ExploreScreenState extends State<ExploreScreen> {
   }
 
   Widget _buildSearchResults() {
-    return ListView(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      children: [
-        // Recent Searches
-        const Text(
-          'Recent',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-            color: InstagramColors.darkText,
-          ),
+    final query = _searchController.text.trim();
+
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: _userRepository.searchUsers(query).then((result) {
+        return result.fold(
+          (error) => <Map<String, dynamic>>[],
+          (users) => users,
+        );
+      }),
+      builder: (context, snapshot) {
+        // Show loading while fetching
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(
+            child: CircularProgressIndicator(color: InstagramColors.primary),
+          );
+        }
+
+        // Show error or empty state, no mock fallback
+        if (snapshot.hasError) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(
+                  Icons.error_outline,
+                  color: InstagramColors.darkText,
+                  size: 48,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Error loading results',
+                  style: TextStyle(
+                    color: InstagramColors.darkText.withValues(alpha: 0.7),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        // Use Firebase results only
+        final users = snapshot.data ?? [];
+
+        return ListView(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          children: [
+            // Recent Searches
+            const Text(
+              'Recent',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: InstagramColors.darkText,
+              ),
+            ),
+            const SizedBox(height: 16),
+            // No recent search items in production - empty list
+            const SizedBox(height: 24),
+            // Suggested
+            const Text(
+              'Suggested',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: InstagramColors.darkText,
+              ),
+            ),
+            const SizedBox(height: 16),
+            // User results from Firebase or fallback
+            ...users.asMap().entries.map(
+              (entry) => _buildUserResultFromData(entry.key, entry.value),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildUserResultFromData(int index, Map<String, dynamic> user) {
+    return ListTile(
+      leading: CircleAvatar(
+        backgroundColor: InstagramColors.primary,
+        backgroundImage: user['profilePicture'] != null
+            ? NetworkImage(user['profilePicture'])
+            : null,
+        child: user['profilePicture'] == null
+            ? Text(
+                (user['username'] as String? ?? 'U')[0].toUpperCase(),
+                style: const TextStyle(color: Colors.white),
+              )
+            : null,
+      ),
+      title: Text(
+        user['username'] ?? 'user_${index + 1}',
+        style: const TextStyle(
+          color: InstagramColors.darkText,
+          fontWeight: FontWeight.w600,
         ),
-        const SizedBox(height: 16),
-        // Recent search items
-        ...List.generate(5, (index) => _buildRecentSearchItem(index)),
-        const SizedBox(height: 24),
-        // Suggested
-        const Text(
-          'Suggested',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-            color: InstagramColors.darkText,
-          ),
+      ),
+      subtitle: Text(
+        user['name'] ?? user['username'] ?? 'User ${index + 1}',
+        style: const TextStyle(color: InstagramColors.darkTextSecondary),
+      ),
+      trailing: IconButton(
+        icon: const Icon(
+          Icons.close,
+          size: 20,
+          color: InstagramColors.darkTextSecondary,
         ),
-        const SizedBox(height: 16),
-        ...List.generate(8, (index) => _buildUserResult(index)),
-      ],
+        onPressed: () {},
+      ),
     );
   }
 
   Widget _buildRecentSearchItem(int index) {
     return ListTile(
-      leading: const Icon(Icons.history, color: InstagramColors.darkTextSecondary),
+      leading: const Icon(
+        Icons.history,
+        color: InstagramColors.darkTextSecondary,
+      ),
       title: Text(
         'Recent search ${index + 1}',
         style: const TextStyle(color: InstagramColors.darkText),
       ),
-      trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: InstagramColors.darkTextSecondary),
+      trailing: const Icon(
+        Icons.arrow_forward_ios,
+        size: 16,
+        color: InstagramColors.darkTextSecondary,
+      ),
       onTap: () {},
-    );
-  }
-
-  Widget _buildUserResult(int index) {
-    return ListTile(
-      leading: CircleAvatar(
-        backgroundColor: InstagramColors.primary,
-        child: Text('U${index + 1}'),
-      ),
-      title: Text(
-        'user_${index + 1}',
-        style: const TextStyle(color: InstagramColors.darkText, fontWeight: FontWeight.w600),
-      ),
-      subtitle: Text(
-        'User ${index + 1}',
-        style: const TextStyle(color: InstagramColors.darkTextSecondary),
-      ),
-      trailing: IconButton(
-        icon: const Icon(Icons.close, size: 20, color: InstagramColors.darkTextSecondary),
-        onPressed: () {},
-      ),
     );
   }
 
@@ -170,7 +269,9 @@ class _ExploreScreenState extends State<ExploreScreen> {
         children: [
           // Placeholder image
           Container(
-            color: Colors.primaries[index % Colors.primaries.length].withValues(alpha: 0.3),
+            color: Colors.primaries[index % Colors.primaries.length].withValues(
+              alpha: 0.3,
+            ),
             child: Center(
               child: Icon(
                 item['type'] == 'reel' ? Icons.play_arrow : Icons.image,
@@ -244,7 +345,9 @@ class TrendingTagsScreen extends StatelessWidget {
               width: 50,
               height: 50,
               decoration: BoxDecoration(
-                gradient: const LinearGradient(colors: InstagramColors.instagramGradient),
+                gradient: const LinearGradient(
+                  colors: InstagramColors.instagramGradient,
+                ),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: const Icon(Icons.tag, color: Colors.white),
@@ -273,21 +376,10 @@ class TrendingTagsScreen extends StatelessWidget {
 /// User Search Results Screen
 class UserSearchResultsScreen extends StatelessWidget {
   final String query;
+  final UserRepository _userRepository;
 
-  const UserSearchResultsScreen({super.key, required this.query});
-
-  // Mock users based on search query
-  List<Map<String, dynamic>> get _users {
-    return List.generate(10, (index) {
-      return {
-        'id': index,
-        'username': '${query}_user_$index',
-        'name': 'User $index',
-        'avatar': null,
-        'isFollowing': index % 3 == 0,
-      };
-    });
-  }
+  UserSearchResultsScreen({super.key, required this.query})
+    : _userRepository = UserRepository();
 
   @override
   Widget build(BuildContext context) {
@@ -295,50 +387,122 @@ class UserSearchResultsScreen extends StatelessWidget {
       backgroundColor: InstagramColors.darkBackground,
       appBar: AppBar(
         backgroundColor: InstagramColors.darkBackground,
-        title: Text('Results for "$query"', style: const TextStyle(color: InstagramColors.darkText)),
+        title: Text(
+          'Results for "$query"',
+          style: const TextStyle(color: InstagramColors.darkText),
+        ),
       ),
-      body: ListView.builder(
-        itemCount: _users.length,
-        itemBuilder: (context, index) {
-          final user = _users[index];
-          return ListTile(
-            leading: CircleAvatar(
-              radius: 24,
-              backgroundColor: InstagramColors.primary,
-              child: Text(
-                user['username'][0].toUpperCase(),
-                style: const TextStyle(color: Colors.white),
-              ),
-            ),
-            title: Text(
-              user['username'],
-              style: const TextStyle(color: InstagramColors.darkText, fontWeight: FontWeight.w600),
-            ),
-            subtitle: Text(
-              user['name'],
-              style: const TextStyle(color: InstagramColors.darkTextSecondary),
-            ),
-            trailing: user['isFollowing']
-                ? Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: InstagramColors.darkSurface,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: const Text('Following', style: TextStyle(color: InstagramColors.darkTextSecondary, fontSize: 12)),
-                  )
-                : Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: InstagramColors.primary,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: const Text('Follow', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 12)),
+      body: FutureBuilder<List<Map<String, dynamic>>>(
+        future: _userRepository.searchUsers(query).then((result) {
+          return result.fold(
+            (error) => <Map<String, dynamic>>[],
+            (users) => users,
+          );
+        }),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(
+              child: CircularProgressIndicator(color: InstagramColors.primary),
+            );
+          }
+
+          // Show error or empty state, no mock fallback
+          if (snapshot.hasError) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(
+                    Icons.error_outline,
+                    color: InstagramColors.darkText,
+                    size: 48,
                   ),
-            onTap: () {},
+                  const SizedBox(height: 16),
+                  Text(
+                    'Error loading results',
+                    style: TextStyle(
+                      color: InstagramColors.darkText.withValues(alpha: 0.7),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          // Use Firebase results only
+          final users = snapshot.data ?? [];
+
+          return ListView.builder(
+            itemCount: users.length,
+            itemBuilder: (context, index) {
+              final user = users[index];
+              return _buildUserTile(user, index);
+            },
           );
         },
       ),
+    );
+  }
+
+  Widget _buildUserTile(Map<String, dynamic> user, int index) {
+    final isFollowing = user['isFollowing'] ?? false;
+
+    return ListTile(
+      leading: CircleAvatar(
+        radius: 24,
+        backgroundColor: InstagramColors.primary,
+        backgroundImage: user['profilePicture'] != null
+            ? NetworkImage(user['profilePicture'])
+            : null,
+        child: user['profilePicture'] == null
+            ? Text(
+                (user['username'] as String? ?? 'U')[0].toUpperCase(),
+                style: const TextStyle(color: Colors.white),
+              )
+            : null,
+      ),
+      title: Text(
+        user['username'] ?? '',
+        style: const TextStyle(
+          color: InstagramColors.darkText,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      subtitle: Text(
+        user['name'] ?? user['username'] ?? '',
+        style: const TextStyle(color: InstagramColors.darkTextSecondary),
+      ),
+      trailing: isFollowing
+          ? Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: InstagramColors.darkSurface,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: const Text(
+                'Following',
+                style: TextStyle(
+                  color: InstagramColors.darkTextSecondary,
+                  fontSize: 12,
+                ),
+              ),
+            )
+          : Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              decoration: BoxDecoration(
+                color: InstagramColors.primary,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: const Text(
+                'Follow',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+      onTap: () {},
     );
   }
 }

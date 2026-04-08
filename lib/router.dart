@@ -19,7 +19,7 @@ import 'package:infected_insta/features/call/screens/video_call_screen.dart';
 import 'package:infected_insta/features/call/models/call_model.dart';
 import 'package:infected_insta/features/stories/screens/story_screens.dart';
 
-// Simple router without Firebase auth check for demo
+// Router with Firebase auth check
 final router = GoRouter(
   initialLocation: '/',
   redirect: (context, state) {
@@ -28,11 +28,18 @@ final router = GoRouter(
     final isAuthRoute =
         state.matchedLocation == '/auth' ||
         state.matchedLocation == '/login' ||
-        state.matchedLocation == '/signup';
+        state.matchedLocation == '/signup' ||
+        state.matchedLocation == '/forgot-password' ||
+        state.matchedLocation.startsWith('/onboarding');
 
     // If not logged in and trying to access auth routes, allow it
     if (!isLoggedIn && isAuthRoute) {
       return null;
+    }
+
+    // If not logged in and trying to access protected routes, redirect to login
+    if (!isLoggedIn && !isAuthRoute) {
+      return '/login';
     }
 
     // If logged in and trying to access auth routes, redirect to home

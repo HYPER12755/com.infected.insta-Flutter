@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class SettingsProvider with ChangeNotifier {
   bool _isPrivate = false;
@@ -13,11 +14,13 @@ class SettingsProvider with ChangeNotifier {
   }
 
   void toggleTheme() {
-    _themeMode = _themeMode == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
+    _themeMode = _themeMode == ThemeMode.light
+        ? ThemeMode.dark
+        : ThemeMode.light;
     notifyListeners();
   }
 
-  void logout() {
-    // In a real app, this would clear the user session.
+  Future<void> logout() async {
+    await FirebaseAuth.instance.signOut();
   }
 }

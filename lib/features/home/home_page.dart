@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
+import 'package:infected_insta/data/repositories/post_repository.dart';
+import 'package:infected_insta/data/repositories/user_repository.dart';
 import 'package:infected_insta/features/chat/screens/chat_screen.dart';
 import 'package:infected_insta/features/search/screens/explore_screen.dart';
 import 'package:infected_insta/features/create_post/screens/create_screens.dart';
@@ -154,70 +156,140 @@ class _FeedTab extends ConsumerStatefulWidget {
 }
 
 class _FeedTabState extends ConsumerState<_FeedTab> {
-  final List<Map<String, dynamic>> _posts = List.generate(10, (index) {
-    return {
-      'id': index,
-      'username': _mockUsernames[index % _mockUsernames.length],
-      'userAvatar': 'https://i.pravatar.cc/150?img=${index + 1}',
-      'location': _mockLocations[index % _mockLocations.length],
-      'imageUrl': 'https://picsum.photos/seed/post$index/400/500',
-      'caption': _mockCaptions[index % _mockCaptions.length],
-      'likes': (index + 1) * 127,
-      'comments': (index + 1) * 23,
-      'time': '${(index + 1) * 2}h',
-      'isLiked': false,
-      'isSaved': false,
-    };
-  });
+  final PostRepository _postRepository = PostRepository();
+  final UserRepository _userRepository = UserRepository();
 
-  static const _mockUsernames = [
-    'sarah_designs',
-    'mike_travels',
-    'foodie_jane',
-    'tech_guru',
-    'fitness_pro',
-    'artsy_alex',
-    'music_lover',
-    'travel_bug',
-    'photo_king',
-    'fashion_first',
-  ];
+  List<Map<String, dynamic>> _posts = [];
+  List<Map<String, dynamic>> _stories = [];
+  bool _isLoading = true;
+  String? _error;
 
-  static const _mockLocations = [
-    'New York, USA',
-    'Tokyo, Japan',
-    'Paris, France',
-    'London, UK',
-    'Sydney, Australia',
-    'Los Angeles, USA',
-    'Berlin, Germany',
-    'Toronto, Canada',
-    'Milan, Italy',
-    'Barcelona, Spain',
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
 
-  static const _mockCaptions = [
-    'Living my best life! ✨ #blessed #livingmybestlife',
-    'Adventure awaits! 🌎 Who else loves traveling?',
-    'Food is life 🍕 What should I eat next?',
-    'Just launched something amazing! Check it out 🚀',
-    'Workout complete! 💪 Who is with me?',
-    'Art is everywhere 🎨 Found this gem today',
-    'Music is my therapy 🎵 What are you listening to?',
-    'Wanderlust ✈️ Where to next?',
-    'Capture the moment 📸 Love this view!',
-    'Style game strong 👗 Fashion week vibes',
-  ];
+  Future<void> _loadData() async {
+    await _loadPosts();
+    await _loadStories();
+  }
+
+  Future<void> _loadStories() async {
+    try {
+      final currentUserId = _userRepository.getCurrentUserId();
+      if (currentUserId != null) {
+        // Fetch story users from suggested users
+        final storiesResult = await _userRepository.getSuggestedUsers(
+          currentUserId,
+        );
+        storiesResult.fold((error) {}, (users) {
+          if (mounted) {
+            setState(() {
+              _stories = users.take(7).toList();
+            });
+          }
+        });
+      }
+    } catch (e) {
+      // Silently fail for stories
+    }
+  }
+
+  Future<void> _loadPosts() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    final result = await _postRepository.getPosts();
+
+    result.fold(
+      (error) {
+        // Handle error - show error state without fallback
+        setState(() {
+          _error = error.message;
+          _isLoading = false;
+          _posts = [];
+        });
+      },
+      (posts) {
+        // Add local state fields to Firestore data
+        _posts = posts.map<Map<String, dynamic>>((post) {
+          return <String, dynamic>{...post, 'isLiked': false, 'isSaved': false};
+        }).toList();
+        setState(() {
+          _isLoading = false;
+        });
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final primaryColor = Theme.of(context).primaryColor;
+
+    if (_isLoading) {
+      return SafeArea(
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(color: primaryColor),
+              const SizedBox(height: 16),
+              Text(
+                'Loading posts...',
+                style: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (_error != null && _posts.isEmpty) {
+      return SafeArea(
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.error_outline,
+                size: 48,
+                color: Colors.white.withValues(alpha: 0.6),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Something went wrong',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.8),
+                  fontSize: 16,
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: _loadPosts,
+                child: Text('Retry', style: TextStyle(color: primaryColor)),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return SafeArea(
       child: CustomScrollView(
         slivers: [
           SliverAppBar(
             floating: true,
             backgroundColor: Colors.transparent,
+            leading: Padding(
+              padding: const EdgeInsets.only(left: 8.0),
+              child: IconButton(
+                icon: const FaIcon(FontAwesomeIcons.paperPlane, size: 22),
+                onPressed: () => context.push('/messages'),
+              ),
+            ),
             title: ShaderMask(
               shaderCallback: (bounds) => const LinearGradient(
                 colors: [Color(0xFFC039FF), Color(0xFF9B59B6)],
@@ -232,13 +304,9 @@ class _FeedTabState extends ConsumerState<_FeedTab> {
                 icon: const FaIcon(FontAwesomeIcons.bell, size: 20),
                 onPressed: () => context.push('/notifications'),
               ),
-              IconButton(
-                icon: const FaIcon(FontAwesomeIcons.paperPlane, size: 20),
-                onPressed: () => context.push('/messages'),
-              ),
             ],
           ),
-          SliverToBoxAdapter(child: _buildStories(primaryColor)),
+          SliverToBoxAdapter(child: _buildStories(primaryColor, _stories)),
           SliverList(
             delegate: SliverChildBuilderDelegate(
               (ctx, i) => _buildPost(_posts[i], primaryColor, i),
@@ -257,16 +325,18 @@ class _FeedTabState extends ConsumerState<_FeedTab> {
     );
   }
 
-  Widget _buildStories(Color primaryColor) {
-    final stories = List.generate(8, (index) {
-      return {
-        'id': index,
-        'username': index == 0 ? 'your_story' : _mockUsernames[index - 1],
-        'avatar': 'https://i.pravatar.cc/150?img=${index + 10}',
-        'hasStory': index != 0,
-        'isViewed': index > 3,
-      };
-    });
+  Widget _buildStories(Color primaryColor, List<Map<String, dynamic>> stories) {
+    // Add "Your Story" at the beginning
+    final allStories = [
+      {
+        'id': 'your_story',
+        'username': 'your_story',
+        'avatar': null,
+        'hasStory': false,
+        'isViewed': false,
+      },
+      ...stories,
+    ];
 
     return Container(
       height: 110,
@@ -274,9 +344,9 @@ class _FeedTabState extends ConsumerState<_FeedTab> {
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
-        itemCount: stories.length,
+        itemCount: allStories.length,
         itemBuilder: (ctx, index) =>
-            _storyItem(stories[index], primaryColor, index),
+            _storyItem(allStories[index], primaryColor, index),
       ),
     );
   }
@@ -291,15 +361,15 @@ class _FeedTabState extends ConsumerState<_FeedTab> {
         if (isYourStory) {
           context.push('/story-create');
         } else {
+          // In production, stories would have real images from Firestore
+          // For now, pass empty images list until story data is properly implemented
+          final storyImages = story['images'] as List<String>? ?? [];
           context.push(
             '/story/${story['id']}',
             extra: {
               'username': story['username'],
               'avatar': story['avatar'],
-              'images': List.generate(
-                3,
-                (i) => 'https://picsum.photos/seed/${story['id']}_$i/400/700',
-              ),
+              'images': storyImages,
             },
           );
         }
@@ -513,7 +583,7 @@ class _FeedTabState extends ConsumerState<_FeedTab> {
                       const SizedBox(height: 12),
                       // Likes count
                       Text(
-                        '${_formatCount(post['likes'])} likes',
+                        '${_formatCount(post['likes'] ?? 0)} likes',
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 14,
@@ -525,14 +595,14 @@ class _FeedTabState extends ConsumerState<_FeedTab> {
                         text: TextSpan(
                           children: [
                             TextSpan(
-                              text: post['username'],
+                              text: post['username'] ?? '',
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 14,
                               ),
                             ),
                             TextSpan(
-                              text: ' ${post['caption']}',
+                              text: ' ${post['caption'] ?? ''}',
                               style: const TextStyle(fontSize: 14),
                             ),
                           ],
@@ -543,7 +613,7 @@ class _FeedTabState extends ConsumerState<_FeedTab> {
                       GestureDetector(
                         onTap: () => _showComments(context, post['id']),
                         child: Text(
-                          'View all ${post['comments']} comments',
+                          'View all ${post['commentsCount'] ?? post['comments'] ?? 0} comments',
                           style: TextStyle(
                             color: Colors.white.withValues(alpha: 0.6),
                           ),
@@ -552,7 +622,7 @@ class _FeedTabState extends ConsumerState<_FeedTab> {
                       const SizedBox(height: 4),
                       // Time
                       Text(
-                        post['time'],
+                        _formatTime(post['createdAt']),
                         style: TextStyle(
                           fontSize: 12,
                           color: Colors.white.withValues(alpha: 0.4),
@@ -713,11 +783,37 @@ class _FeedTabState extends ConsumerState<_FeedTab> {
     }
     return count.toString();
   }
+
+  String _formatTime(dynamic createdAt) {
+    if (createdAt == null) {
+      return 'just now';
+    }
+
+    DateTime postTime;
+    if (createdAt is DateTime) {
+      postTime = createdAt;
+    } else {
+      return 'just now';
+    }
+
+    final now = DateTime.now();
+    final difference = now.difference(postTime);
+
+    if (difference.inDays > 0) {
+      return '${difference.inDays}d';
+    } else if (difference.inHours > 0) {
+      return '${difference.inHours}h';
+    } else if (difference.inMinutes > 0) {
+      return '${difference.inMinutes}m';
+    } else {
+      return 'just now';
+    }
+  }
 }
 
 /// Comments Sheet - Full implementation
 class _CommentsSheet extends StatefulWidget {
-  final int postId;
+  final dynamic postId;
 
   const _CommentsSheet({required this.postId});
 
@@ -727,32 +823,15 @@ class _CommentsSheet extends StatefulWidget {
 
 class _CommentsSheetState extends State<_CommentsSheet> {
   final _commentController = TextEditingController();
-  final List<Map<String, dynamic>> _comments = List.generate(5, (index) {
-    return {
-      'id': index,
-      'username': _mockCommenters[index % _mockCommenters.length],
-      'avatar': 'https://i.pravatar.cc/150?img=${index + 20}',
-      'comment': _mockComments[index % _mockComments.length],
-      'likes': index * 7,
-      'isLiked': false,
-      'time': '${index + 1}h',
-    };
-  });
+  final List<Map<String, dynamic>> _comments = [];
+  bool _isLoading = true;
 
-  static const _mockCommenters = [
-    'fan_123',
-    'comment_king',
-    'social_butterfly',
-    'daily_poster',
-    'viewer_99',
-  ];
-  static const _mockComments = [
-    'This is amazing! 🔥',
-    'Love this! ❤️',
-    'So cool! 😎',
-    'Great content! 👏',
-    'Amazing! ✨',
-  ];
+  @override
+  void initState() {
+    super.initState();
+    // No mock data - will be empty until real data loaded
+    _isLoading = false;
+  }
 
   @override
   void dispose() {

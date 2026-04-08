@@ -10,15 +10,26 @@ class CloseFriendsScreen extends StatefulWidget {
 }
 
 class _CloseFriendsScreenState extends State<CloseFriendsScreen> {
-  // Mock close friends
-  final List<Map<String, dynamic>> _friends = List.generate(15, (index) {
-    return {
-      'id': index,
-      'username': 'friend_$index',
-      'avatar': null,
-      'isAdded': index < 5, // First 5 are added
-    };
-  });
+  // No mock data - empty list for production
+  List<Map<String, dynamic>> _friends = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFriends();
+  }
+
+  Future<void> _loadFriends() async {
+    // In production, this would fetch from Firestore
+    // For now, show empty state
+    if (mounted) {
+      setState(() {
+        _friends = [];
+        _isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

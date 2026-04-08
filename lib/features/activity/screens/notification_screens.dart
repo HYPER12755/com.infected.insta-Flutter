@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:infected_insta/core/theme/instagram_theme.dart';
+import 'package:infected_insta/data/repositories/notification_repository.dart';
 
 /// Activity Feed Screen
 class ActivityFeedScreen extends StatelessWidget {
@@ -7,58 +9,8 @@ class ActivityFeedScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Mock activities
-    final activities = [
-      {
-        'type': 'like',
-        'user': 'user_1',
-        'action': 'liked your post',
-        'time': '2h',
-        'avatar': 'U1',
-      },
-      {
-        'type': 'follow',
-        'user': 'user_2',
-        'action': 'started following you',
-        'time': '4h',
-        'avatar': 'U2',
-      },
-      {
-        'type': 'comment',
-        'user': 'user_3',
-        'action': 'commented: "Amazing! 🔥"',
-        'time': '5h',
-        'avatar': 'U3',
-      },
-      {
-        'type': 'like',
-        'user': 'user_4',
-        'action': 'liked your reel',
-        'time': '6h',
-        'avatar': 'U4',
-      },
-      {
-        'type': 'follow',
-        'user': 'user_5',
-        'action': 'started following you',
-        'time': '1d',
-        'avatar': 'U5',
-      },
-      {
-        'type': 'mention',
-        'user': 'user_6',
-        'action': 'mentioned you in a post',
-        'time': '1d',
-        'avatar': 'U6',
-      },
-      {
-        'type': 'like',
-        'user': 'user_7',
-        'action': 'liked your story',
-        'time': '2d',
-        'avatar': 'U7',
-      },
-    ];
+    final notificationRepo = NotificationRepository();
+    final currentUser = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
       backgroundColor: InstagramColors.darkBackground,
@@ -75,16 +27,183 @@ class ActivityFeedScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: ListView.separated(
-        itemCount: activities.length,
-        separatorBuilder: (context, index) =>
-            const Divider(color: InstagramColors.darkSecondary, height: 1),
-        itemBuilder: (context, index) {
-          final activity = activities[index];
-          return _buildActivityItem(activity);
-        },
-      ),
+      body: currentUser == null
+          ? const Center(
+              child: Text(
+                'Please sign in to view notifications',
+                style: TextStyle(color: InstagramColors.darkText),
+              ),
+            )
+          : StreamBuilder<List<Map<String, dynamic>>>(
+              stream: notificationRepo
+                  .getNotifications(currentUser.uid)
+                  .map(
+                    (result) => result.fold(
+                      (error) => <Map<String, dynamic>>[],
+                      (notifications) => notifications,
+                    ),
+                  ),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(
+                    child: CircularProgressIndicator(
+                      color: InstagramColors.primary,
+                    ),
+                  );
+                }
+
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.error_outline,
+                          color: InstagramColors.darkText,
+                          size: 48,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Error loading notifications',
+                          style: TextStyle(
+                            color: InstagramColors.darkText.withValues(
+                              alpha: 0.7,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                final notifications = snapshot.data ?? [];
+
+                if (notifications.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.notifications_none,
+                          color: InstagramColors.darkText.withValues(
+                            alpha: 0.5,
+                          ),
+                          size: 64,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'No notifications yet',
+                          style: TextStyle(
+                            color: InstagramColors.darkText.withValues(
+                              alpha: 0.7,
+                            ),
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                // Convert Firestore notifications to UI format
+                final activities = notifications.map((notification) {
+                  return _convertNotificationToActivity(notification);
+                }).toList();
+
+                return _buildActivityListView(activities);
+              },
+            ),
     );
+  }
+
+  Widget _buildMockListView(List<Map<String, dynamic>> activities) {
+    return ListView.separated(
+      itemCount: activities.length,
+      separatorBuilder: (context, index) =>
+          const Divider(color: InstagramColors.darkSecondary, height: 1),
+      itemBuilder: (context, index) {
+        final activity = activities[index];
+        return _buildActivityItem(activity);
+      },
+    );
+  }
+
+  Widget _buildActivityListView(List<Map<String, dynamic>> activities) {
+    return ListView.separated(
+      itemCount: activities.length,
+      separatorBuilder: (context, index) =>
+          const Divider(color: InstagramColors.darkSecondary, height: 1),
+      itemBuilder: (context, index) {
+        final activity = activities[index];
+        return _buildActivityItem(activity);
+      },
+    );
+  }
+
+  Map<String, dynamic> _convertNotificationToActivity(
+    Map<String, dynamic> notification,
+  ) {
+    final type = notification['type'] as String? ?? 'like';
+    final fromUsername = notification['fromUsername'] as String? ?? 'User';
+    final createdAt = notification['createdAt'];
+
+    // Calculate time ago
+    String timeAgo = 'Just now';
+    if (createdAt != null) {
+      final now = DateTime.now();
+      DateTime notificationTime;
+      if (createdAt is DateTime) {
+        notificationTime = createdAt;
+      } else {
+        // Handle Timestamp from Firestore
+        notificationTime = DateTime.now(); // Fallback
+      }
+      final difference = now.difference(notificationTime);
+
+      if (difference.inMinutes < 1) {
+        timeAgo = 'Just now';
+      } else if (difference.inMinutes < 60) {
+        timeAgo = '${difference.inMinutes}m';
+      } else if (difference.inHours < 24) {
+        timeAgo = '${difference.inHours}h';
+      } else if (difference.inDays < 7) {
+        timeAgo = '${difference.inDays}d';
+      } else {
+        timeAgo = '${difference.inDays ~/ 7}w';
+      }
+    }
+
+    String action;
+    switch (type) {
+      case 'like':
+        action = 'liked your post';
+        break;
+      case 'follow':
+        action = 'started following you';
+        break;
+      case 'comment':
+        action = 'commented on your post';
+        break;
+      case 'mention':
+        action = 'mentioned you in a post';
+        break;
+      default:
+        action = 'interacted with you';
+    }
+
+    // Get avatar initial
+    final avatarInitial = fromUsername.isNotEmpty
+        ? fromUsername[0].toUpperCase()
+        : 'U';
+
+    return {
+      'type': type,
+      'user': fromUsername,
+      'action': action,
+      'time': timeAgo,
+      'avatar': avatarInitial,
+      'isRead': notification['isRead'] ?? false,
+    };
   }
 
   Widget _buildActivityItem(Map<String, dynamic> activity) {
@@ -262,7 +381,11 @@ class FollowRequestsScreen extends StatelessWidget {
                   leading: CircleAvatar(
                     radius: 24,
                     backgroundColor: InstagramColors.primary,
-                    child: Text(req['username']?.toString().isNotEmpty == true ? req['username'].toString()[13].toUpperCase() : '?'),
+                    child: Text(
+                      req['username']?.toString().isNotEmpty == true
+                          ? req['username'].toString()[13].toUpperCase()
+                          : '?',
+                    ),
                   ),
                   title: Text(
                     req['username']?.toString() ?? '',
@@ -354,30 +477,15 @@ class LikesCommentsScreen extends StatefulWidget {
 }
 
 class _LikesCommentsScreenState extends State<LikesCommentsScreen> {
-  late List<Map<String, dynamic>> _interactions;
+  List<Map<String, dynamic>> _interactions = [];
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    // Mock data
-    if (widget.type == 'likes') {
-      _interactions = List.generate(15, (index) {
-        return {
-          'id': index,
-          'username': 'user_liked_$index',
-          'isFollowing': index < 5,
-        };
-      });
-    } else {
-      _interactions = List.generate(10, (index) {
-        return {
-          'id': index,
-          'username': 'user_commented_$index',
-          'comment': 'Great post! 🔥',
-          'time': '${index + 1}h',
-        };
-      });
-    }
+    // No mock data - empty list for production
+    _interactions = [];
+    _isLoading = false;
   }
 
   @override
@@ -410,7 +518,11 @@ class _LikesCommentsScreenState extends State<LikesCommentsScreen> {
       leading: CircleAvatar(
         radius: 20,
         backgroundColor: InstagramColors.primary,
-        child: Text(item['username']?.toString().isNotEmpty == true ? item['username'].toString()[10].toUpperCase() : '?'),
+        child: Text(
+          item['username']?.toString().isNotEmpty == true
+              ? item['username'].toString()[10].toUpperCase()
+              : '?',
+        ),
       ),
       title: Text(
         item['username']?.toString() ?? '',
@@ -457,7 +569,11 @@ class _LikesCommentsScreenState extends State<LikesCommentsScreen> {
       leading: CircleAvatar(
         radius: 20,
         backgroundColor: InstagramColors.primary,
-        child: Text(item['username']?.toString().isNotEmpty == true ? item['username'].toString()[13].toUpperCase() : '?'),
+        child: Text(
+          item['username']?.toString().isNotEmpty == true
+              ? item['username'].toString()[13].toUpperCase()
+              : '?',
+        ),
       ),
       title: RichText(
         text: TextSpan(
