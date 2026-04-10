@@ -14,13 +14,13 @@ class UserRepository {
     data['id'] = user.id;
     data['created_at'] = DateTime.now().toIso8601String();
     
-    await supabase.from('users').insert(data);
+    await supabase.from('profiles').insert(data);
   }
 
   /// Get a user by ID
   Future<User?> getUser(String userId) async {
     final response = await supabase
-        .from('users')
+        .from('profiles')
         .select()
         .eq('id', userId)
         .maybeSingle();
@@ -32,13 +32,13 @@ class UserRepository {
   /// Update user profile
   Future<void> updateUser(User user) async {
     final data = user.toJson();
-    await supabase.from('users').update(data).eq('id', user.id);
+    await supabase.from('profiles').update(data).eq('id', user.id);
   }
 
   /// Stream user data for real-time updates
   Stream<User?> userStream(String userId) {
     return supabase
-        .from('users')
+        .from('profiles')
         .stream(primaryKey: ['id'])
         .eq('id', userId)
         .map((maps) {

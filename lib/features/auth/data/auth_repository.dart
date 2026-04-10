@@ -35,17 +35,14 @@ class AuthRepository {
     final response = await supabase.auth.signUp(
       email: email,
       password: password,
-    );
-
-    // If sign up was successful, create a user profile in the users table
-    if (response.user != null) {
-      await supabase.from('users').insert({
-        'id': response.user!.id,
+      data: {
         'username': username,
         'full_name': fullName,
-        'email': email,
-      });
-    }
+      },
+    );
+
+    // Profile will be created automatically by the trigger
+    // No manual insert needed
 
     return response;
   }

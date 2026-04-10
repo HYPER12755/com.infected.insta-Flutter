@@ -25,7 +25,7 @@ class UserRepository extends BaseRepository {
   Future<Result<Map<String, dynamic>>> getUserProfile(String userId) async {
     try {
       final response = await supabase
-          .from('users')
+          .from('profiles')
           .select()
           .eq('id', userId)
           .maybeSingle();
@@ -54,7 +54,7 @@ class UserRepository extends BaseRepository {
     Map<String, dynamic> data,
   ) async {
     try {
-      await supabase.from('users').update(data).eq('id', userId);
+      await supabase.from('profiles').update(data).eq('id', userId);
 
       return const Success(null);
     } catch (e) {
@@ -119,7 +119,7 @@ class UserRepository extends BaseRepository {
   Future<Result<List<Map<String, dynamic>>>> searchUsers(String query) async {
     try {
       final response = await supabase
-          .from('users')
+          .from('profiles')
           .select()
           .ilike('username', '%$query%')
           .limit(20);
@@ -143,7 +143,7 @@ class UserRepository extends BaseRepository {
     try {
       // Get users that the current user is not following
       final response = await supabase
-          .from('users')
+          .from('profiles')
           .select()
           .neq('id', currentUserId)
           .limit(10);
@@ -172,7 +172,7 @@ class UserRepository extends BaseRepository {
         'created_at': DateTime.now().toIso8601String(),
       };
 
-      await supabase.from('users').insert(dataWithId);
+      await supabase.from('profiles').insert(dataWithId);
 
       return const Success(null);
     } catch (e) {
