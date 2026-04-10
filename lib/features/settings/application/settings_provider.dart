@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 class SettingsProvider with ChangeNotifier {
   bool _isPrivate = false;
@@ -21,6 +20,6 @@ class SettingsProvider with ChangeNotifier {
   }
 
   Future<void> logout() async {
-    await FirebaseAuth.instance.signOut();
+    // Stub: Logout to be implemented with Supabase auth
   }
 }

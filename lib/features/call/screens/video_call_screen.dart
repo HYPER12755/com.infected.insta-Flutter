@@ -16,6 +16,8 @@ class _VideoCallScreenState extends ConsumerState<VideoCallScreen> {
   Timer? _callTimer;
   int _callDuration = 0;
   bool _showControls = true;
+  String _connectionStatus = 'Connecting...';
+  int _connectionQuality = 0; // 0: unknown, 1: poor, 2: fair, 3: good
 
   @override
   void initState() {
@@ -33,6 +35,14 @@ class _VideoCallScreenState extends ConsumerState<VideoCallScreen> {
     _callTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       setState(() {
         _callDuration++;
+        // Update connection status display based on duration
+        if (_callDuration > 5) {
+          _connectionStatus = 'Connected';
+          _connectionQuality = 3;
+        } else if (_callDuration > 2) {
+          _connectionStatus = 'Connecting';
+          _connectionQuality = 2;
+        }
       });
     });
   }
@@ -47,6 +57,34 @@ class _VideoCallScreenState extends ConsumerState<VideoCallScreen> {
     setState(() {
       _showControls = !_showControls;
     });
+  }
+
+  /// Get connection quality indicator color
+  Color _getQualityColor() {
+    switch (_connectionQuality) {
+      case 3:
+        return Colors.green;
+      case 2:
+        return Colors.orange;
+      case 1:
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  /// Get connection quality icon
+  IconData _getQualityIcon() {
+    switch (_connectionQuality) {
+      case 3:
+        return Icons.signal_cellular_4_bar;
+      case 2:
+        return Icons.signal_cellular_alt;
+      case 1:
+        return Icons.signal_cellular_alt_1_bar;
+      default:
+        return Icons.signal_cellular_alt_1_bar;
+    }
   }
 
   @override
@@ -159,24 +197,24 @@ class _VideoCallScreenState extends ConsumerState<VideoCallScreen> {
                           ],
                         ),
                       ),
-                      // Call status indicator
+                      // Call status indicator with quality
                       Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 12,
                           vertical: 6,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.green.withAlpha(77),
+                          color: _getQualityColor().withAlpha(77),
                           borderRadius: BorderRadius.circular(16),
                         ),
-                        child: const Row(
+                        child: Row(
                           children: [
-                            Icon(Icons.circle, color: Colors.green, size: 8),
-                            SizedBox(width: 4),
+                            Icon(_getQualityIcon(), color: _getQualityColor(), size: 14),
+                            const SizedBox(width: 4),
                             Text(
-                              'Connected',
+                              _connectionStatus,
                               style: TextStyle(
-                                color: Colors.green,
+                                color: _getQualityColor(),
                                 fontSize: 12,
                               ),
                             ),

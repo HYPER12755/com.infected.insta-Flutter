@@ -1,5 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-
 class User {
   final String id;
   final String username;
@@ -19,10 +17,10 @@ class User {
     this.following = const [],
   });
 
-  factory User.fromDoc(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+  /// Create User from Map data (Supabase format)
+  factory User.fromMap(Map<String, dynamic> data, String id) {
     return User(
-      id: doc.id,
+      id: id,
       username: data['username'] ?? '',
       email: data['email'] ?? '',
       photoUrl: data['photoUrl'],

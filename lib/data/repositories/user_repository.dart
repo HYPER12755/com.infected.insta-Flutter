@@ -1,41 +1,50 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../../supabase/supabase_client.dart';
 import '../models/result.dart';
 import 'base_repository.dart';
 
 class UserRepository extends BaseRepository {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-
-  /// Get current user ID
+  /// Get current user ID from Supabase auth
   String? getCurrentUserId() {
-    return _auth.currentUser?.uid;
+    return currentUser?.id;
   }
 
-  /// Get current user
+  /// Get current user from Supabase auth
   User? getCurrentUser() {
-    return _auth.currentUser;
+    return currentUser;
   }
 
   /// Check if user is authenticated
   bool isAuthenticated() {
-    return _auth.currentUser != null;
+    return currentUser != null;
   }
 
   /// Get user profile data
   /// Returns a Result with user data or error/not found
   Future<Result<Map<String, dynamic>>> getUserProfile(String userId) async {
-    return withRetry<Map<String, dynamic>>(() async {
-      final DocumentSnapshot doc = await firestore
-          .collection('users')
-          .doc(userId)
-          .get();
+    try {
+      final response = await supabase
+          .from('users')
+          .select()
+          .eq('id', userId)
+          .maybeSingle();
 
-      if (!doc.exists) {
-        throw NotFoundException(message: 'User profile not found');
+      if (response == null) {
+        return const Failure(
+          NotFoundException(message: 'User profile not found'),
+        );
       }
 
-      return doc.data() as Map<String, dynamic>;
-    });
+      return Success(response);
+    } catch (e) {
+      return Failure(
+        DatabaseException(
+          message: 'Failed to get user profile: ${e.toString()}',
+          originalError: e,
+        ),
+      );
+    }
   }
 
   /// Update user profile
@@ -44,9 +53,18 @@ class UserRepository extends BaseRepository {
     String userId,
     Map<String, dynamic> data,
   ) async {
-    return withRetry<void>(() async {
-      await firestore.collection('users').doc(userId).update(data);
-    });
+    try {
+      await supabase.from('users').update(data).eq('id', userId);
+
+      return const Success(null);
+    } catch (e) {
+      return Failure(
+        DatabaseException(
+          message: 'Failed to update user profile: ${e.toString()}',
+          originalError: e,
+        ),
+      );
+    }
   }
 
   /// Follow a user
@@ -55,17 +73,22 @@ class UserRepository extends BaseRepository {
     String currentUserId,
     String targetUserId,
   ) async {
-    return withRetry<void>(() async {
-      // Add to current user's following
-      await firestore.collection('users').doc(currentUserId).update({
-        'following': FieldValue.arrayUnion([targetUserId]),
+    try {
+      await supabase.from('follows').insert({
+        'follower_id': currentUserId,
+        'following_id': targetUserId,
+        'created_at': DateTime.now().toIso8601String(),
       });
 
-      // Add to target user's followers
-      await firestore.collection('users').doc(targetUserId).update({
-        'followers': FieldValue.arrayUnion([currentUserId]),
-      });
-    });
+      return const Success(null);
+    } catch (e) {
+      return Failure(
+        DatabaseException(
+          message: 'Failed to follow user: ${e.toString()}',
+          originalError: e,
+        ),
+      );
+    }
   }
 
   /// Unfollow a user
@@ -74,34 +97,42 @@ class UserRepository extends BaseRepository {
     String currentUserId,
     String targetUserId,
   ) async {
-    return withRetry<void>(() async {
-      // Remove from current user's following
-      await firestore.collection('users').doc(currentUserId).update({
-        'following': FieldValue.arrayRemove([targetUserId]),
+    try {
+      await supabase.from('follows').delete().match({
+        'follower_id': currentUserId,
+        'following_id': targetUserId,
       });
 
-      // Remove from target user's followers
-      await firestore.collection('users').doc(targetUserId).update({
-        'followers': FieldValue.arrayRemove([currentUserId]),
-      });
-    });
+      return const Success(null);
+    } catch (e) {
+      return Failure(
+        DatabaseException(
+          message: 'Failed to unfollow user: ${e.toString()}',
+          originalError: e,
+        ),
+      );
+    }
   }
 
   /// Search users
   /// Returns a Result with list of users or error
   Future<Result<List<Map<String, dynamic>>>> searchUsers(String query) async {
-    return withRetry<List<Map<String, dynamic>>>(() async {
-      final QuerySnapshot snapshot = await firestore
-          .collection('users')
-          .where('username', isGreaterThanOrEqualTo: query)
-          .where('username', isLessThanOrEqualTo: '$query\uf8ff')
-          .get();
+    try {
+      final response = await supabase
+          .from('users')
+          .select()
+          .ilike('username', '%$query%')
+          .limit(20);
 
-      return snapshot.docs.map((doc) {
-        final data = doc.data() as Map<String, dynamic>;
-        return {'id': doc.id, ...data};
-      }).toList();
-    });
+      return Success(response);
+    } catch (e) {
+      return Failure(
+        DatabaseException(
+          message: 'Failed to search users: ${e.toString()}',
+          originalError: e,
+        ),
+      );
+    }
   }
 
   /// Get users to follow (suggestions)
@@ -109,17 +140,23 @@ class UserRepository extends BaseRepository {
   Future<Result<List<Map<String, dynamic>>>> getSuggestedUsers(
     String currentUserId,
   ) async {
-    return withRetry<List<Map<String, dynamic>>>(() async {
-      final QuerySnapshot snapshot = await firestore
-          .collection('users')
-          .limit(10)
-          .get();
+    try {
+      // Get users that the current user is not following
+      final response = await supabase
+          .from('users')
+          .select()
+          .neq('id', currentUserId)
+          .limit(10);
 
-      return snapshot.docs.where((doc) => doc.id != currentUserId).map((doc) {
-        final data = doc.data() as Map<String, dynamic>;
-        return {'id': doc.id, ...data};
-      }).toList();
-    });
+      return Success(response);
+    } catch (e) {
+      return Failure(
+        DatabaseException(
+          message: 'Failed to get suggested users: ${e.toString()}',
+          originalError: e,
+        ),
+      );
+    }
   }
 
   /// Create user profile
@@ -128,14 +165,23 @@ class UserRepository extends BaseRepository {
     String userId,
     Map<String, dynamic> userData,
   ) async {
-    return withRetry<void>(() async {
-      await firestore.collection('users').doc(userId).set({
+    try {
+      final dataWithId = {
         ...userData,
-        'createdAt': FieldValue.serverTimestamp(),
-        'followers': [],
-        'following': [],
-        'posts': 0,
-      });
-    });
+        'id': userId,
+        'created_at': DateTime.now().toIso8601String(),
+      };
+
+      await supabase.from('users').insert(dataWithId);
+
+      return const Success(null);
+    } catch (e) {
+      return Failure(
+        DatabaseException(
+          message: 'Failed to create user profile: ${e.toString()}',
+          originalError: e,
+        ),
+      );
+    }
   }
 }

@@ -1,4 +1,3 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
@@ -41,11 +40,11 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         if (mounted) {
           GoRouter.of(context).go('/home');
         }
-      } on FirebaseAuthException catch (e) {
+      } catch (e) {
         if (!mounted) return;
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text(e.message ?? 'Login failed.')));
+        ).showSnackBar(SnackBar(content: Text(e.toString())));
       } finally {
         if (mounted) {
           setState(() => _isLoading = false);

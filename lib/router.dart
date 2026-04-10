@@ -1,5 +1,4 @@
 import 'package:go_router/go_router.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:infected_insta/features/auth/presentation/auth_screen.dart';
 import 'package:infected_insta/features/splash/screens/splash_screen.dart';
 import 'package:infected_insta/features/auth/presentation/onboarding_screen.dart';
@@ -18,13 +17,15 @@ import 'package:infected_insta/features/call/screens/call_screen.dart';
 import 'package:infected_insta/features/call/screens/video_call_screen.dart';
 import 'package:infected_insta/features/call/models/call_model.dart';
 import 'package:infected_insta/features/stories/screens/story_screens.dart';
+import 'package:infected_insta/supabase/supabase_client.dart';
 
-// Router with Firebase auth check
+// Router - Supabase auth check for redirect
 final router = GoRouter(
   initialLocation: '/',
   redirect: (context, state) {
-    final user = FirebaseAuth.instance.currentUser;
-    final isLoggedIn = user != null;
+    // Supabase auth check - redirect unauthenticated users to login
+    final isLoggedIn = supabase.auth.currentSession != null;
+
     final isAuthRoute =
         state.matchedLocation == '/auth' ||
         state.matchedLocation == '/login' ||
@@ -32,17 +33,12 @@ final router = GoRouter(
         state.matchedLocation == '/forgot-password' ||
         state.matchedLocation.startsWith('/onboarding');
 
-    // If not logged in and trying to access auth routes, allow it
-    if (!isLoggedIn && isAuthRoute) {
-      return null;
-    }
-
-    // If not logged in and trying to access protected routes, redirect to login
-    if (!isLoggedIn && !isAuthRoute) {
+    // If user is not logged in and trying to access non-auth routes, redirect to login
+    if (!isLoggedIn && !isAuthRoute && state.matchedLocation != '/') {
       return '/login';
     }
 
-    // If logged in and trying to access auth routes, redirect to home
+    // If user is logged in and trying to access auth routes, redirect to home
     if (isLoggedIn && isAuthRoute) {
       return '/home';
     }

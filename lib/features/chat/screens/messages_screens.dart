@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:infected_insta/core/theme/instagram_theme.dart';
 import 'package:infected_insta/features/call/screens/call_screen.dart';
 import 'package:infected_insta/features/call/models/call_model.dart';
 import 'package:infected_insta/data/repositories/message_repository.dart';
 import 'package:infected_insta/data/repositories/user_repository.dart';
+import 'package:infected_insta/supabase/supabase_client.dart';
 
 /// Messages Inbox Screen
 class MessagesInboxScreen extends StatelessWidget {
@@ -14,7 +13,8 @@ class MessagesInboxScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final messageRepo = MessageRepository();
-    final currentUserId = FirebaseAuth.instance.currentUser?.uid ?? 'test_user';
+    final userRepo = UserRepository();
+    final currentUserId = userRepo.getCurrentUserId() ?? 'test_user';
 
     return Scaffold(
       backgroundColor: InstagramColors.darkBackground,
@@ -203,16 +203,31 @@ class MessagesInboxScreen extends StatelessWidget {
   String _formatTimestamp(dynamic timestamp) {
     if (timestamp == null) return '';
     if (timestamp is String) return timestamp;
-    if (timestamp is Timestamp) {
-      final now = DateTime.now();
-      final diff = now.difference(timestamp.toDate());
-      if (diff.inMinutes < 1) return 'Now';
-      if (diff.inHours < 1) return '${diff.inMinutes}m';
-      if (diff.inDays < 1) return '${diff.inHours}h';
-      if (diff.inDays < 7) return '${diff.inDays}d';
-      return '${(diff.inDays / 7).floor()}w';
+    // Handle DateTime from Supabase
+    if (timestamp is DateTime) {
+      return _formatTimeAgo(timestamp);
+    }
+    if (timestamp is int) {
+      return _formatTimeAgo(DateTime.fromMillisecondsSinceEpoch(timestamp));
     }
     return '';
+  }
+
+  String _formatTimeAgo(DateTime dateTime) {
+    final now = DateTime.now();
+    final difference = now.difference(dateTime);
+    
+    if (difference.inDays > 7) {
+      return '${dateTime.month}/${dateTime.day}/${dateTime.year}';
+    } else if (difference.inDays > 0) {
+      return '${difference.inDays}d ago';
+    } else if (difference.inHours > 0) {
+      return '${difference.inHours}h ago';
+    } else if (difference.inMinutes > 0) {
+      return '${difference.inMinutes}m ago';
+    } else {
+      return 'Now';
+    }
   }
 }
 
@@ -237,8 +252,14 @@ class _ConversationChatScreenState extends State<ConversationChatScreen> {
   final TextEditingController _messageController = TextEditingController();
   bool _isSending = false;
   final MessageRepository _messageRepo = MessageRepository();
-  final String _currentUserId =
-      FirebaseAuth.instance.currentUser?.uid ?? 'test_user';
+  final UserRepository _userRepo = UserRepository();
+  late final String _currentUserId;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentUserId = _userRepo.getCurrentUserId() ?? 'test_user';
+  }
 
   @override
   void dispose() {
@@ -249,11 +270,31 @@ class _ConversationChatScreenState extends State<ConversationChatScreen> {
   String _formatMessageTime(dynamic timestamp) {
     if (timestamp == null) return '';
     if (timestamp is String) return timestamp;
-    if (timestamp is Timestamp) {
-      final dt = timestamp.toDate();
-      return '${dt.hour}:${dt.minute.toString().padLeft(2, '0')}';
+    // Handle DateTime from Supabase
+    if (timestamp is DateTime) {
+      return _formatTimeAgo(timestamp);
+    }
+    if (timestamp is int) {
+      return _formatTimeAgo(DateTime.fromMillisecondsSinceEpoch(timestamp));
     }
     return '';
+  }
+
+  String _formatTimeAgo(DateTime dateTime) {
+    final now = DateTime.now();
+    final difference = now.difference(dateTime);
+    
+    if (difference.inDays > 7) {
+      return '${dateTime.month}/${dateTime.day}/${dateTime.year}';
+    } else if (difference.inDays > 0) {
+      return '${difference.inDays}d ago';
+    } else if (difference.inHours > 0) {
+      return '${difference.inHours}h ago';
+    } else if (difference.inMinutes > 0) {
+      return '${difference.inMinutes}m ago';
+    } else {
+      return 'Now';
+    }
   }
 
   @override
@@ -677,73 +718,80 @@ class _NewMessageScreenState extends State<NewMessageScreen> {
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _filteredUsers.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.person_search,
-                              size: 64,
-                              color: InstagramColors.darkText.withValues(alpha: 0.5),
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              _searchQuery.isEmpty
-                                  ? 'No users found'
-                                  : 'No results for "$_searchQuery"',
-                              style: TextStyle(
-                                color: InstagramColors.darkText.withValues(alpha: 0.7),
-                              ),
-                            ),
-                          ],
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.person_search,
+                          size: 64,
+                          color: InstagramColors.darkText.withValues(
+                            alpha: 0.5,
+                          ),
                         ),
-                      )
-                    : ListView.builder(
-                        itemCount: _filteredUsers.length,
-                        itemBuilder: (context, index) {
-                          final user = _filteredUsers[index];
-                          final avatarUrl = user['profilePicture'] as String?;
-                          final username = user['username'] ?? user['displayName'] ?? 'User';
-                          
-                          return ListTile(
-                            leading: CircleAvatar(
-                              backgroundColor: InstagramColors.primary,
-                              backgroundImage: avatarUrl != null
-                                  ? NetworkImage(avatarUrl)
-                                  : null,
-                              child: avatarUrl == null
-                                  ? Text(
-                                      username.isNotEmpty ? username[0].toUpperCase() : '?',
-                                      style: const TextStyle(color: Colors.white),
-                                    )
-                                  : null,
+                        const SizedBox(height: 16),
+                        Text(
+                          _searchQuery.isEmpty
+                              ? 'No users found'
+                              : 'No results for "$_searchQuery"',
+                          style: TextStyle(
+                            color: InstagramColors.darkText.withValues(
+                              alpha: 0.7,
                             ),
-                            title: Text(
-                              username,
-                              style: const TextStyle(
-                                color: InstagramColors.darkText,
-                                fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    itemCount: _filteredUsers.length,
+                    itemBuilder: (context, index) {
+                      final user = _filteredUsers[index];
+                      final avatarUrl = user['profilePicture'] as String?;
+                      final username =
+                          user['username'] ?? user['displayName'] ?? 'User';
+
+                      return ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: InstagramColors.primary,
+                          backgroundImage: avatarUrl != null
+                              ? NetworkImage(avatarUrl)
+                              : null,
+                          child: avatarUrl == null
+                              ? Text(
+                                  username.isNotEmpty
+                                      ? username[0].toUpperCase()
+                                      : '?',
+                                  style: const TextStyle(color: Colors.white),
+                                )
+                              : null,
+                        ),
+                        title: Text(
+                          username,
+                          style: const TextStyle(
+                            color: InstagramColors.darkText,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        trailing: const Icon(
+                          Icons.message_outlined,
+                          color: InstagramColors.primary,
+                        ),
+                        onTap: () {
+                          // Start conversation
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => ConversationChatScreen(
+                                conversationId: user['id'].toString(),
+                                username: username,
                               ),
                             ),
-                            trailing: const Icon(
-                              Icons.message_outlined,
-                              color: InstagramColors.primary,
-                            ),
-                            onTap: () {
-                              // Start conversation
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => ConversationChatScreen(
-                                    conversationId: user['id'].toString(),
-                                    username: username,
-                                  ),
-                                ),
-                              );
-                            },
                           );
                         },
-                      ),
+                      );
+                    },
+                  ),
           ),
         ],
       ),
@@ -819,30 +867,41 @@ class _MessageRequestsScreenState extends State<MessageRequestsScreen> {
 
   Future<void> _loadRequests() async {
     try {
-      final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+      final userRepo = UserRepository();
+      final currentUserId = userRepo.getCurrentUserId();
+      
       if (currentUserId == null) {
-        if (mounted) setState(() => _isLoading = false);
+        if (mounted) {
+          setState(() {
+            _requests = [];
+            _isLoading = false;
+          });
+        }
         return;
       }
-
-      // Fetch message requests from Firestore
-      final snapshot = await FirebaseFirestore.instance
-          .collection('message_requests')
-          .where('receiverId', isEqualTo: currentUserId)
-          .where('status', isEqualTo: 'pending')
-          .get();
-
+      
+      // Get pending message requests from messages table where recipient is current user
+      // This queries messages sent to the current user that haven't been accepted yet
+      final response = await supabase
+          .from('messages')
+          .select()
+          .eq('receiver_id', currentUserId)
+          .eq('status', 'pending')
+          .order('created_at', ascending: false);
+      
       if (mounted) {
         setState(() {
-          _requests = snapshot.docs.map((doc) {
-            final data = doc.data();
-            return {'id': doc.id, ...data};
-          }).toList();
+          _requests = response;
           _isLoading = false;
         });
       }
     } catch (e) {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() {
+          _requests = [];
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -857,86 +916,129 @@ class _MessageRequestsScreenState extends State<MessageRequestsScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _requests.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.mail_outline,
+                    size: 64,
+                    color: InstagramColors.darkText.withValues(alpha: 0.5),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'No message requests',
+                    style: TextStyle(
+                      color: InstagramColors.darkText.withValues(alpha: 0.7),
+                      fontSize: 16,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          : ListView.builder(
+              itemCount: _requests.length,
+              itemBuilder: (context, index) {
+                final req = _requests[index];
+                return ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: InstagramColors.primary,
+                    child: Text(
+                      req['username']?.toString().isNotEmpty == true
+                          ? req['username'].toString()[0].toUpperCase()
+                          : '?',
+                    ),
+                  ),
+                  title: Text(
+                    req['username']?.toString() ?? 'Unknown',
+                    style: const TextStyle(
+                      color: InstagramColors.darkText,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  subtitle: Text(
+                    req['message']?.toString() ?? '',
+                    style: const TextStyle(
+                      color: InstagramColors.darkTextSecondary,
+                    ),
+                  ),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(
-                        Icons.mail_outline,
-                        size: 64,
-                        color: InstagramColors.darkText.withValues(alpha: 0.5),
+                      TextButton(
+                        onPressed: () async {
+                          // Accept request - create conversation with the sender
+                          try {
+                            final senderId = req['sender_id']?.toString();
+                            final receiverId = req['receiver_id']?.toString();
+                            final messageId = req['id']?.toString();
+                            
+                            if (senderId != null && receiverId != null && messageId != null) {
+                              // Update message status to accepted
+                              await supabase.from('messages').update({
+                                'status': 'accepted'
+                              }).eq('id', messageId);
+                              
+                              // Create a conversation between the two users
+                              await supabase.from('conversations').insert({
+                                'participant_ids': [senderId, receiverId],
+                                'created_at': DateTime.now().toIso8601String(),
+                                'updated_at': DateTime.now().toIso8601String(),
+                              });
+                              
+                              // Remove from local list
+                              setState(() {
+                                _requests.removeWhere((r) => r['id'] == req['id']);
+                              });
+                            }
+                          } catch (e) {
+                            // Still remove from UI even if database fails
+                            setState(() {
+                              _requests.removeWhere((r) => r['id'] == req['id']);
+                            });
+                          }
+                        },
+                        child: const Text(
+                          'Accept',
+                          style: TextStyle(color: InstagramColors.primary),
+                        ),
                       ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'No message requests',
-                        style: TextStyle(
-                          color: InstagramColors.darkText.withValues(alpha: 0.7),
-                          fontSize: 16,
+                      TextButton(
+                        onPressed: () async {
+                          // Decline request - update message status to declined
+                          try {
+                            final messageId = req['id']?.toString();
+                            
+                            if (messageId != null) {
+                              // Update message status to declined
+                              await supabase.from('messages').update({
+                                'status': 'declined'
+                              }).eq('id', messageId);
+                            }
+                            
+                            // Remove from local list
+                            setState(() {
+                              _requests.removeWhere((r) => r['id'] == req['id']);
+                            });
+                          } catch (e) {
+                            // Still remove from UI even if database fails
+                            setState(() {
+                              _requests.removeWhere((r) => r['id'] == req['id']);
+                            });
+                          }
+                        },
+                        child: const Text(
+                          'Decline',
+                          style: TextStyle(
+                            color: InstagramColors.darkTextSecondary,
+                          ),
                         ),
                       ),
                     ],
                   ),
-                )
-              : ListView.builder(
-                  itemCount: _requests.length,
-                  itemBuilder: (context, index) {
-                    final req = _requests[index];
-                    return ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: InstagramColors.primary,
-                        child: Text(
-                          req['username']?.toString().isNotEmpty == true
-                              ? req['username'].toString()[0].toUpperCase()
-                              : '?',
-                        ),
-                      ),
-                      title: Text(
-                        req['username']?.toString() ?? 'Unknown',
-                        style: const TextStyle(
-                          color: InstagramColors.darkText,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      subtitle: Text(
-                        req['message']?.toString() ?? '',
-                        style: const TextStyle(color: InstagramColors.darkTextSecondary),
-                      ),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          TextButton(
-                            onPressed: () async {
-                              // Accept request
-                              await FirebaseFirestore.instance
-                                  .collection('message_requests')
-                                  .doc(req['id'])
-                                  .update({'status': 'accepted'});
-                              _loadRequests();
-                            },
-                            child: const Text(
-                              'Accept',
-                              style: TextStyle(color: InstagramColors.primary),
-                            ),
-                          ),
-                          TextButton(
-                            onPressed: () async {
-                              // Decline request
-                              await FirebaseFirestore.instance
-                                  .collection('message_requests')
-                                  .doc(req['id'])
-                                  .update({'status': 'declined'});
-                              _loadRequests();
-                            },
-                            child: const Text(
-                              'Decline',
-                              style: TextStyle(color: InstagramColors.darkTextSecondary),
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
+                );
+              },
+            ),
     );
   }
 }

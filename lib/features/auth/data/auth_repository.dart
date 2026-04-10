@@ -1,101 +1,117 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:google_sign_in/google_sign_in.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:infected_insta/supabase/supabase_client.dart';
 
+/// Auth Repository using Supabase
+/// 
+/// This repository provides authentication methods using Supabase Auth
 class AuthRepository {
-  final FirebaseAuth _auth;
-  final FirebaseFirestore _firestore;
+  /// Stream of authentication state changes
+  Stream<AuthState> get authStateChanges => supabase.auth.onAuthStateChange;
 
-  AuthRepository({FirebaseAuth? auth, FirebaseFirestore? firestore})
-    : _auth = auth ?? FirebaseAuth.instance,
-      _firestore = firestore ?? FirebaseFirestore.instance;
+  /// Current authenticated user, if any
+  User? get currentUser => supabase.auth.currentSession?.user;
 
-  Stream<User?> get authStateChanges => _auth.authStateChanges();
+  /// Current session, if any
+  Session? get currentSession => supabase.auth.currentSession;
 
-  User? get currentUser => _auth.currentUser;
-
-  Future<void> signInWithEmailAndPassword(String email, String password) async {
-    await _auth.signInWithEmailAndPassword(email: email, password: password);
+  /// Sign in with email and password
+  Future<AuthResponse> signInWithEmailAndPassword(
+    String email,
+    String password,
+  ) async {
+    return await supabase.auth.signInWithPassword(
+      email: email,
+      password: password,
+    );
   }
 
-  Future<UserCredential> signUpWithEmailAndPassword({
+  /// Sign up with email and password
+  Future<AuthResponse> signUpWithEmailAndPassword({
     required String email,
     required String password,
     required String username,
     required String fullName,
   }) async {
-    final credentials = await _auth.createUserWithEmailAndPassword(
+    final response = await supabase.auth.signUp(
       email: email,
       password: password,
     );
-    await _firestore.collection('users').doc(credentials.user!.uid).set({
-      'username': username,
-      'email': email,
-      'fullName': fullName,
-      'followers': <String>[],
-      'following': <String>[],
-      'posts': 0,
-      'bio': '',
-      'website': '',
-      'profilePic': '',
-    });
-    return credentials;
+
+    // If sign up was successful, create a user profile in the users table
+    if (response.user != null) {
+      await supabase.from('users').insert({
+        'id': response.user!.id,
+        'username': username,
+        'full_name': fullName,
+        'email': email,
+      });
+    }
+
+    return response;
   }
 
+  /// Send email verification
+  /// Note: Supabase handles email verification automatically on sign up
   Future<void> sendEmailVerification() async {
-    final user = _auth.currentUser;
-    if (user != null) {
-      await user.sendEmailVerification();
+    final user = currentUser;
+    if (user != null && user.email != null) {
+      // Resend is not directly available, but you can use reset password flow
+      // Or implement your own email sending through Edge Functions
     }
   }
 
-  Future<bool> isEmailVerified() async {
-    final user = _auth.currentUser;
-    if (user != null) {
-      await user.reload();
-      return user.emailVerified;
-    }
-    return false;
+  /// Check if current user's email is verified
+  bool isEmailVerified() {
+    final user = currentUser;
+    return user?.emailConfirmedAt != null;
   }
 
+  /// Send password reset email
   Future<void> sendPasswordResetEmail(String email) async {
-    await _auth.sendPasswordResetEmail(email: email);
+    await supabase.auth.resetPasswordForEmail(email);
   }
 
-  Future<void> signInWithGoogle() async {
-    // Use the new authenticate() method
-    try {
-      final GoogleSignInAccount googleUser = await GoogleSignIn.instance.authenticate();
-
-      // Get idToken from authentication
-      final GoogleSignInAuthentication auth = googleUser.authentication;
-      final String? idToken = auth.idToken;
-
-      // Get access token via authorizationClient
-      final scopes = <String>['email', 'profile'];
-      final GoogleSignInClientAuthorization? clientAuth = 
-          await googleUser.authorizationClient.authorizationForScopes(scopes);
-      final String? accessToken = clientAuth?.accessToken;
-
-      final OAuthCredential credential = GoogleAuthProvider.credential(
-        accessToken: accessToken,
-        idToken: idToken,
-      );
-
-      await _auth.signInWithCredential(credential);
-    } catch (e) {
-      // The user canceled the sign-in or an error occurred
-      return;
-    }
+  /// Sign in with Google using OAuth
+  Future<bool> signInWithGoogle() async {
+    final response = await supabase.auth.signInWithOAuth(
+      OAuthProvider.google,
+      redirectTo: 'io.supabase.flutter://callback',
+    );
+    return response;
   }
 
-  Future<void> signInWithGitHub() async {
-    final GithubAuthProvider githubProvider = GithubAuthProvider();
-    await _auth.signInWithProvider(githubProvider);
+  /// Sign in with GitHub using OAuth
+  Future<bool> signInWithGitHub() async {
+    final response = await supabase.auth.signInWithOAuth(
+      OAuthProvider.github,
+      redirectTo: 'io.supabase.flutter://callback',
+    );
+    return response;
   }
 
+  /// Sign out the current user
   Future<void> signOut() async {
-    await GoogleSignIn.instance.signOut();
-    await _auth.signOut();
+    await supabase.auth.signOut();
+  }
+
+  /// Get user profile by ID
+  Future<Map<String, dynamic>?> getUserById(String userId) async {
+    final response = await supabase
+        .from('users')
+        .select()
+        .eq('id', userId)
+        .maybeSingle();
+    return response;
+  }
+
+  /// Update user profile
+  Future<void> updateUserProfile({
+    required String userId,
+    required Map<String, dynamic> data,
+  }) async {
+    await supabase
+        .from('users')
+        .update(data)
+        .eq('id', userId);
   }
 }

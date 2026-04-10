@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:infected_insta/data/fixtures/default_profile_data.dart';
 
 // A model to represent the user's profile data.
 class Profile {
@@ -24,7 +25,11 @@ class Profile {
 
 // A provider to manage the state of the user's profile.
 class ProfileProvider with ChangeNotifier {
-  final Profile _profile = Profile(name: 'Your Name', username: 'YourUsername', bio: 'This is your bio!');
+  final Profile _profile = Profile(
+    name: DefaultProfileData.defaultName, 
+    username: DefaultProfileData.defaultUsername, 
+    bio: DefaultProfileData.defaultBio
+  );
 
   Profile get profile => _profile;
 

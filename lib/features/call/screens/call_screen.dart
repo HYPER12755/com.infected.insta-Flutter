@@ -124,12 +124,45 @@ class _CallInitScreenState extends ConsumerState<_CallInitScreen> {
   }
 
   void _startCall(BuildContext context) {
-    // TODO: Implement user selection UI
-    // For now, show a message
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Please implement user selection UI'),
-        duration: Duration(seconds: 2),
+    // Show user selection dialog - this would connect to a user list or contacts
+    // For production, this should show a UsersListScreen or similar
+    // Simplified: navigate to users list for selection
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1A1A1A),
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Start a call with:',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16),
+            ListTile(
+              leading: const CircleAvatar(
+                child: Icon(Icons.person),
+              ),
+              title: const Text(
+                'Select from contacts',
+                style: TextStyle(color: Colors.white),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Navigate to contacts for call'),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
       ),
     );
   }

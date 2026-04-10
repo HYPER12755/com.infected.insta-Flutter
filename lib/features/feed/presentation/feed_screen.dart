@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:infected_insta/core/config/app_config.dart';
 
 class FeedScreen extends StatelessWidget {
   const FeedScreen({super.key});
@@ -40,7 +41,7 @@ class FeedScreen extends StatelessWidget {
                               shape: BoxShape.circle,
                               border: Border.all(color: const Color(0xFF121212), width: 2),
                               image: const DecorationImage(
-                                image: NetworkImage('https://via.placeholder.com/150'), // Placeholder
+                                image: NetworkImage(AppConfig.placeholderAvatarUrl), // Placeholder
                                 fit: BoxFit.cover,
                               ),
                             ),

@@ -1,39 +1,47 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../features/auth/providers/firestore_provider.dart';
+import '../../../../supabase/supabase_client.dart';
 import '../models/post.dart';
 
-final postRepositoryProvider = Provider((ref) => PostRepository(ref.watch(firestoreProvider)));
+final postRepositoryProvider = Provider((ref) => PostRepository());
 
 class PostRepository {
-  final FirebaseFirestore _firestore;
-
-  PostRepository(this._firestore);
-
+  /// Create a new post
   Future<void> createPost(Post post) async {
-    await _firestore.collection('posts').add(post.toJson());
+    final data = post.toJson();
+    data['id'] = post.id;
+    data['created_at'] = DateTime.now().toIso8601String();
+
+    await supabase.from('posts').insert(data);
   }
 
+  /// Get all posts stream for real-time updates
   Stream<List<Post>> getPosts() {
-    return _firestore
-        .collection('posts')
-        .orderBy('timestamp', descending: true)
-        .snapshots()
-        .map((snapshot) {
-      return snapshot.docs.map((doc) => Post.fromDoc(doc)).toList();
-    });
+    return supabase
+        .from('posts')
+        .stream(primaryKey: ['id'])
+        .order('created_at', ascending: false)
+        .map(
+          (maps) => maps.map((data) {
+            return Post.fromMap(data, data['id'] as String);
+          }).toList(),
+        );
   }
 
+  /// Like a post
   Future<void> likePost(String postId, String userId) async {
-    await _firestore.collection('posts').doc(postId).update({
-      'likes': FieldValue.arrayUnion([userId])
+    await supabase.from('post_likes').insert({
+      'post_id': postId,
+      'user_id': userId,
+      'created_at': DateTime.now().toIso8601String(),
     });
   }
 
+  /// Unlike a post
   Future<void> unlikePost(String postId, String userId) async {
-    await _firestore.collection('posts').doc(postId).update({
-      'likes': FieldValue.arrayRemove([userId])
+    await supabase.from('post_likes').delete().match({
+      'post_id': postId,
+      'user_id': userId,
     });
   }
 }

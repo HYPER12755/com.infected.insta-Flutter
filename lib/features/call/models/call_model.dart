@@ -43,7 +43,7 @@ class CallModel {
        roomId = roomId ?? const Uuid().v4(),
        iceCandidates = iceCandidates ?? [];
 
-  /// Create a CallModel from JSON map (Firebase document)
+  /// Create a CallModel from JSON map
   factory CallModel.fromJson(Map<String, dynamic> json) {
     return CallModel(
       callId: json['callId'] as String,
@@ -67,7 +67,7 @@ class CallModel {
     );
   }
 
-  /// Convert CallModel to JSON map for Firebase
+  /// Convert CallModel to JSON map
   Map<String, dynamic> toJson() {
     return {
       'callId': callId,

@@ -1,22 +1,50 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../supabase/supabase_client.dart';
 import '../models/user.dart';
-import '../providers/firestore_provider.dart';
 
-final userRepositoryProvider = Provider((ref) => UserRepository(ref.watch(firestoreProvider)));
+final userRepositoryProvider = Provider(
+  (ref) => UserRepository(),
+);
 
 class UserRepository {
-  final FirebaseFirestore _firestore;
-
-  UserRepository(this._firestore);
-
+  /// Create a new user profile
   Future<void> createUser(User user) async {
-    await _firestore.collection('users').doc(user.id).set(user.toJson());
+    final data = user.toJson();
+    data['id'] = user.id;
+    data['created_at'] = DateTime.now().toIso8601String();
+    
+    await supabase.from('users').insert(data);
   }
 
+  /// Get a user by ID
   Future<User?> getUser(String userId) async {
-    final doc = await _firestore.collection('users').doc(userId).get();
-    return doc.exists ? User.fromDoc(doc) : null;
+    final response = await supabase
+        .from('users')
+        .select()
+        .eq('id', userId)
+        .maybeSingle();
+
+    if (response == null) return null;
+    return User.fromMap(response, response['id'] as String);
+  }
+
+  /// Update user profile
+  Future<void> updateUser(User user) async {
+    final data = user.toJson();
+    await supabase.from('users').update(data).eq('id', user.id);
+  }
+
+  /// Stream user data for real-time updates
+  Stream<User?> userStream(String userId) {
+    return supabase
+        .from('users')
+        .stream(primaryKey: ['id'])
+        .eq('id', userId)
+        .map((maps) {
+          if (maps.isEmpty) return null;
+          final data = maps.first;
+          return User.fromMap(data, data['id'] as String);
+        });
   }
 }

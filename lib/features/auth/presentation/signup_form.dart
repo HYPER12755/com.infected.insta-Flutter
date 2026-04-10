@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:infected_insta/features/auth/presentation/providers.dart';
+import 'package:infected_insta/core/config/app_config.dart';
 
 class SignupForm extends ConsumerStatefulWidget {
   const SignupForm({super.key});
@@ -93,7 +94,7 @@ class _SignupFormState extends ConsumerState<SignupForm> with SingleTickerProvid
               onPressed: () {
                 ref.read(authRepositoryProvider).signInWithGoogle();
               },
-              icon: Image.network('https://www.google.com/images/branding/googlelogo/1x/googlelogo_light_color_24dp.png', height: 24),
+              icon: Image.network(AppConfig.googleLogoUrl, height: 24),
               label: const Text('Sign up with Google'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.white,
@@ -108,7 +109,7 @@ class _SignupFormState extends ConsumerState<SignupForm> with SingleTickerProvid
               onPressed: () {
                 ref.read(authRepositoryProvider).signInWithGitHub();
               },
-              icon: Image.network('https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png', height: 24),
+              icon: Image.network(AppConfig.githubLogoUrl, height: 24),
               label: const Text('Sign up with Github'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.black,

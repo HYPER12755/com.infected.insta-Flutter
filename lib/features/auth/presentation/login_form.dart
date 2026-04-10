@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:infected_insta/features/auth/presentation/providers.dart';
+import 'package:infected_insta/core/config/app_config.dart';
 
 class LoginForm extends ConsumerStatefulWidget {
   const LoginForm({super.key});
@@ -9,7 +10,8 @@ class LoginForm extends ConsumerStatefulWidget {
   ConsumerState<LoginForm> createState() => _LoginFormState();
 }
 
-class _LoginFormState extends ConsumerState<LoginForm> with SingleTickerProviderStateMixin {
+class _LoginFormState extends ConsumerState<LoginForm>
+    with SingleTickerProviderStateMixin {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   late AnimationController _animationController;
@@ -63,7 +65,9 @@ class _LoginFormState extends ConsumerState<LoginForm> with SingleTickerProvider
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: () {
-                ref.read(authRepositoryProvider).signInWithEmailAndPassword(
+                ref
+                    .read(authRepositoryProvider)
+                    .signInWithEmailAndPassword(
                       _emailController.text,
                       _passwordController.text,
                     );
@@ -73,7 +77,10 @@ class _LoginFormState extends ConsumerState<LoginForm> with SingleTickerProvider
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 15),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 50,
+                  vertical: 15,
+                ),
               ),
               child: const Text(
                 'Login',
@@ -85,14 +92,17 @@ class _LoginFormState extends ConsumerState<LoginForm> with SingleTickerProvider
               onPressed: () {
                 ref.read(authRepositoryProvider).signInWithGoogle();
               },
-              icon: Image.network('https://www.google.com/images/branding/googlelogo/1x/googlelogo_light_color_24dp.png', height: 24),
+              icon: Image.network(AppConfig.googleLogoUrl, height: 24),
               label: const Text('Sign in with Google'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 15),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 50,
+                  vertical: 15,
+                ),
               ),
             ),
             const SizedBox(height: 10),
@@ -100,14 +110,17 @@ class _LoginFormState extends ConsumerState<LoginForm> with SingleTickerProvider
               onPressed: () {
                 ref.read(authRepositoryProvider).signInWithGitHub();
               },
-              icon: Image.network('https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png', height: 24),
+              icon: Image.network(AppConfig.githubLogoUrl, height: 24),
               label: const Text('Sign in with Github'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.black,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 15),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 50,
+                  vertical: 15,
+                ),
               ),
             ),
           ],
@@ -116,7 +129,11 @@ class _LoginFormState extends ConsumerState<LoginForm> with SingleTickerProvider
     );
   }
 
-  Widget _buildTextField(TextEditingController controller, String label, bool obscureText) {
+  Widget _buildTextField(
+    TextEditingController controller,
+    String label,
+    bool obscureText,
+  ) {
     return TextField(
       controller: controller,
       obscureText: obscureText,

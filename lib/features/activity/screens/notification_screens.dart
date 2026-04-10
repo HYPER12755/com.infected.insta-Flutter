@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:infected_insta/core/theme/instagram_theme.dart';
+import 'package:infected_insta/data/fixtures/mock_requests_data.dart';
 import 'package:infected_insta/data/repositories/notification_repository.dart';
+import 'package:infected_insta/data/repositories/user_repository.dart';
 
 /// Activity Feed Screen
 class ActivityFeedScreen extends StatelessWidget {
@@ -10,7 +11,8 @@ class ActivityFeedScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final notificationRepo = NotificationRepository();
-    final currentUser = FirebaseAuth.instance.currentUser;
+    final userRepo = UserRepository();
+    final currentUserId = userRepo.getCurrentUserId();
 
     return Scaffold(
       backgroundColor: InstagramColors.darkBackground,
@@ -27,7 +29,7 @@ class ActivityFeedScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: currentUser == null
+      body: currentUserId == null
           ? const Center(
               child: Text(
                 'Please sign in to view notifications',
@@ -36,7 +38,7 @@ class ActivityFeedScreen extends StatelessWidget {
             )
           : StreamBuilder<List<Map<String, dynamic>>>(
               stream: notificationRepo
-                  .getNotifications(currentUser.uid)
+                  .getNotifications(currentUserId)
                   .map(
                     (result) => result.fold(
                       (error) => <Map<String, dynamic>>[],
@@ -338,11 +340,7 @@ class FollowRequestsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Mock requests
-    final requests = [
-      {'id': 1, 'username': 'user_request_1', 'time': '2h ago'},
-      {'id': 2, 'username': 'user_request_2', 'time': '5h ago'},
-      {'id': 3, 'username': 'user_request_3', 'time': '1d ago'},
-    ];
+    final requests = MockRequestsData.followRequestsList;
 
     return Scaffold(
       backgroundColor: InstagramColors.darkBackground,

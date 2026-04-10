@@ -3,12 +3,14 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:uuid/uuid.dart';
 
 import 'package:infected_insta/core/theme/instagram_theme.dart';
+import 'package:infected_insta/data/fixtures/filters_data.dart';
+import 'package:infected_insta/data/repositories/user_repository.dart';
+import 'package:infected_insta/data/repositories/post_repository.dart';
+import 'package:infected_insta/features/create_post/providers/storage_provider.dart';
+import 'package:infected_insta/supabase/supabase_client.dart';
 
 /// Create Post Screen - Main create post UI
 class CreatePostScreen extends ConsumerStatefulWidget {
@@ -36,37 +38,49 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
       return;
     }
 
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+    final userRepo = UserRepository();
+    final userId = userRepo.getCurrentUserId();
+    if (userId == null) return;
 
     setState(() => _isPosting = true);
 
     try {
-      // Upload image to Firebase Storage
-      final postId = const Uuid().v4();
-      final storageRef = FirebaseStorage.instance
-          .ref()
-          .child('posts')
-          .child(postId);
-      final uploadTask = await storageRef.putFile(File(_selectedImage!.path));
-      final imageUrl = await uploadTask.ref.getDownloadURL();
-
-      // Save post to Firestore
-      await FirebaseFirestore.instance.collection('posts').add({
-        'authorId': user.uid,
-        'username': user.displayName ?? user.email?.split('@').first,
-        'userAvatar': user.photoURL ?? '',
-        'imageUrl': imageUrl,
+      // Upload image first
+      final storageService = SupabaseStorageService(supabase);
+      final uuid = const Uuid();
+      final imageId = uuid.v4();
+      final imagePath = '${userId}/${imageId}.jpg';
+      
+      // Upload the image to Supabase Storage
+      await storageService.uploadFile(
+        _selectedImage!.path,
+        imagePath,
+      );
+      
+      // Create the post in the database
+      final postRepo = PostRepository();
+      final postData = {
+        'user_id': userId,
+        'image_url': imagePath,
         'caption': _captionController.text.trim(),
-        'likes': 0,
-        'likedBy': [],
-        'commentsCount': 0,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-
-      if (mounted) {
-        Navigator.pop(context);
-      }
+      };
+      
+      final result = await postRepo.createPost(postData);
+      
+      result.fold(
+        (error) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Error creating post: ${error.message}')),
+            );
+          }
+        },
+        (postId) {
+          if (mounted) {
+            Navigator.pop(context);
+          }
+        },
+      );
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
@@ -396,14 +410,7 @@ class EditCropScreen extends StatefulWidget {
 class _EditCropScreenState extends State<EditCropScreen> {
   String _selectedFilter = 'Original';
 
-  final List<Map<String, dynamic>> _filters = [
-    {'name': 'Original', 'color': null},
-    {'name': 'Clarendon', 'color': Colors.blueGrey.withOpacity(0.3)},
-    {'name': 'Gingham', 'color': Colors.brown.withOpacity(0.2)},
-    {'name': 'Moon', 'color': Colors.grey.withOpacity(0.4)},
-    {'name': 'Lark', 'color': Colors.orange.withOpacity(0.2)},
-    {'name': 'Reyes', 'color': Colors.pink.withOpacity(0.2)},
-  ];
+  List<Map<String, dynamic>> get _filters => FiltersData.filters;
 
   @override
   Widget build(BuildContext context) {

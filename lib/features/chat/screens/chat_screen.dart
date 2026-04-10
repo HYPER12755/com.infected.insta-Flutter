@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:infected_insta/data/repositories/message_repository.dart';
+import 'package:infected_insta/data/repositories/user_repository.dart';
+import 'package:infected_insta/features/chat/screens/messages_screens.dart' as messages;
 
 class ChatScreen extends StatelessWidget {
   const ChatScreen({super.key});
@@ -17,7 +18,7 @@ class ChatScreen extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.edit_square),
             onPressed: () {
-              // Navigate to new chat - TODO: implement
+              // Navigate to new chat - TODO: implement with Supabase
             },
           ),
         ],
@@ -35,14 +36,17 @@ class _ChatList extends StatefulWidget {
 }
 
 class _ChatListState extends State<_ChatList> {
-  final _currentUserId = FirebaseAuth.instance.currentUser?.uid;
-  List<QueryDocumentSnapshot> _conversations = [];
+  final _messageRepo = MessageRepository();
+  final _userRepo = UserRepository();
+  late final String? _currentUserId;
+  List<Map<String, dynamic>> _conversations = [];
   bool _isLoading = true;
   String? _error;
 
   @override
   void initState() {
     super.initState();
+    _currentUserId = _userRepo.getCurrentUserId();
     _loadConversations();
   }
 
@@ -53,24 +57,36 @@ class _ChatListState extends State<_ChatList> {
     }
 
     try {
-      // Fetch conversations from Firestore
-      final conversationsRef = FirebaseFirestore.instance
-          .collection('conversations')
-          .where('participants', arrayContains: _currentUserId)
-          .orderBy('lastMessageTime', descending: true);
-
-      final snapshot = await conversationsRef.get();
-
-      setState(() {
-        _conversations = snapshot.docs;
-        _isLoading = false;
-      });
+      final messageRepo = MessageRepository();
+      final result = await messageRepo.getConversations(_currentUserId!);
+      
+      result.fold(
+        (error) {
+          if (mounted) {
+            setState(() {
+              _error = error.message;
+              _conversations = [];
+              _isLoading = false;
+            });
+          }
+        },
+        (conversations) {
+          if (mounted) {
+            setState(() {
+              _conversations = conversations.cast<Map<String, dynamic>>();
+              _isLoading = false;
+            });
+          }
+        },
+      );
     } catch (e) {
-      debugPrint('Error loading conversations: $e');
-      setState(() {
-        _isLoading = false;
-        _error = e.toString();
-      });
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _conversations = [];
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -123,50 +139,15 @@ class _ChatListState extends State<_ChatList> {
         itemCount: _conversations.length,
         itemBuilder: (context, index) {
           final conversation = _conversations[index];
-          final data = conversation.data() as Map<String, dynamic>;
-
-          // Get other participant
-          final participants = data['participants'] as List<dynamic>? ?? [];
-          final otherUserId = participants.firstWhere(
-            (id) => id != _currentUserId,
-            orElse: () => '',
-          );
-
-          return FutureBuilder<DocumentSnapshot>(
-            future: FirebaseFirestore.instance
-                .collection('users')
-                .doc(otherUserId)
-                .get(),
-            builder: (context, userSnapshot) {
-              String userName = 'Unknown';
-              String? userAvatar;
-
-              if (userSnapshot.hasData) {
-                final userDoc = userSnapshot.data;
-                if (userDoc != null) {
-                  final userData = userDoc.data() as Map<String, dynamic>?;
-                  if (userData != null) {
-                    userName = userData['displayName'] ?? userData['username'] ?? 'Unknown';
-                    userAvatar = userData['photoURL'];
-                  }
-                }
-              }
-
-              final unreadCount = data['unreadCount'] as int?;
-
-              return _ConversationTile(
-                conversationId: conversation.id,
-                otherUserId: otherUserId,
-                otherUserName: userName,
-                otherUserAvatar: userAvatar,
-                lastMessage: data['lastMessage'] as String? ?? '',
-                lastMessageTime:
-                    (data['lastMessageTime'] as Timestamp?)
-                        ?.millisecondsSinceEpoch ??
-                    0,
-                isUnread: unreadCount != null && unreadCount > 0,
-              );
-            },
+          return _ConversationTile(
+            conversationId: conversation['id']?.toString() ?? '',
+            otherUserId: conversation['otherUserId']?.toString() ?? '',
+            otherUserName:
+                conversation['otherUserName']?.toString() ?? 'Unknown',
+            otherUserAvatar: conversation['otherUserAvatar']?.toString(),
+            lastMessage: conversation['lastMessage']?.toString() ?? '',
+            lastMessageTime: conversation['lastMessageTime'] as int? ?? 0,
+            isUnread: conversation['isUnread'] as bool? ?? false,
           );
         },
       ),
@@ -194,6 +175,7 @@ class _ConversationTile extends StatelessWidget {
   });
 
   String _formatTime(int timestamp) {
+    if (timestamp == 0) return '';
     final messageTime = DateTime.fromMillisecondsSinceEpoch(timestamp);
     final now = DateTime.now();
     final difference = now.difference(messageTime);
@@ -269,18 +251,17 @@ class _ConversationTile extends StatelessWidget {
         ],
       ),
       onTap: () {
-        // TODO: Navigate to actual chat conversation
-        // Navigator.push(
-        //   context,
-        //   MaterialPageRoute(
-        //     builder: (context) => ChatConversationScreen(
-        //       conversationId: conversationId,
-        //       otherUserId: otherUserId,
-        //       otherUserName: otherUserName,
-        //       otherUserAvatar: otherUserAvatar,
-        //     ),
-        //   ),
-        // );
+        // Navigate to conversation chat screen
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => messages.ConversationChatScreen(
+              conversationId: conversationId,
+              username: otherUserName,
+              userAvatar: otherUserAvatar,
+            ),
+          ),
+        );
       },
     );
   }

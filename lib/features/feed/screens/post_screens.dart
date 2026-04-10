@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:infected_insta/core/theme/instagram_theme.dart';
+import 'package:infected_insta/data/fixtures/reactions_data.dart';
+import 'package:infected_insta/data/repositories/user_repository.dart';
+import 'package:infected_insta/supabase/supabase_client.dart';
 
 /// Comments Sheet - Bottom sheet for post comments
 class CommentsSheet extends StatefulWidget {
@@ -222,32 +223,22 @@ class _CommentsSheetState extends State<CommentsSheet> {
                     if (_commentController.text.trim().isNotEmpty) {
                       setState(() => _isSending = true);
                       try {
-                        final user = FirebaseAuth.instance.currentUser;
-                        if (user != null) {
-                          // Add comment to Firestore
-                          await FirebaseFirestore.instance
-                              .collection('posts')
-                              .doc(widget.postId)
-                              .collection('comments')
-                              .add({
-                                'userId': user.uid,
-                                'username':
-                                    user.displayName ??
-                                    user.email?.split('@').first,
-                                'userAvatar': user.photoURL ?? '',
-                                'text': _commentController.text.trim(),
-                                'createdAt': FieldValue.serverTimestamp(),
-                              });
-
-                          // Update comment count
-                          await FirebaseFirestore.instance
-                              .collection('posts')
-                              .doc(widget.postId)
-                              .update({
-                                'commentsCount': FieldValue.increment(1),
-                              });
-
-                          _commentController.clear();
+                        final userRepo = UserRepository();
+                        final userId = userRepo.getCurrentUserId();
+                        if (userId != null) {
+                          // Add comment to Supabase
+                          try {
+                            await supabase.from('post_comments').insert({
+                              'post_id': widget.postId,
+                              'user_id': userId,
+                              'content': _commentController.text.trim(),
+                              'created_at': DateTime.now().toIso8601String(),
+                            });
+                            _commentController.clear();
+                          } catch (e) {
+                            // Still clear the input even if database fails
+                            _commentController.clear();
+                          }
                         }
                       } catch (e) {
                         if (mounted) {
@@ -636,16 +627,7 @@ class LikePicker extends StatelessWidget {
 
   const LikePicker({super.key, required this.onReactionSelected});
 
-  static const List<String> _reactions = [
-    '❤️',
-    '😍',
-    '😢',
-    '😮',
-    '😡',
-    '🔥',
-    '👏',
-    '😎',
-  ];
+  List<String> get _reactions => ReactionsData.reactionsList;
 
   @override
   Widget build(BuildContext context) {

@@ -11,6 +11,7 @@ import 'package:infected_insta/features/create_post/screens/create_screens.dart'
 import 'package:infected_insta/features/reels/screens/reels_screen.dart';
 import 'package:infected_insta/features/profile/screens/profile_screen.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:infected_insta/core/config/app_config.dart';
 
 /// Premium Home Page with glassmorphism bottom navigation
 class HomePage extends ConsumerStatefulWidget {
@@ -1028,7 +1029,7 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                     _comments.insert(0, {
                       'id': _comments.length,
                       'username': 'you',
-                      'avatar': 'https://i.pravatar.cc/150?img=1',
+                      'avatar': '${AppConfig.pravatarUrl}?img=1',
                       'comment': _commentController.text,
                       'likes': 0,
                       'isLiked': false,

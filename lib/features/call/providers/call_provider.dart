@@ -1,9 +1,8 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:infected_insta/features/call/models/call_model.dart';
-import 'package:infected_insta/features/call/services/firebase_signaling_service.dart';
+import 'package:infected_insta/features/call/services/supabase_signaling_service.dart';
 
 /// State class for the call feature
 class CallState {
@@ -52,7 +51,7 @@ class CallState {
 
 /// Call provider for state management using Riverpod
 class CallProvider extends StateNotifier<CallState> {
-  final FirebaseSignalingService _signalingService;
+  final SupabaseSignalingService _signalingService;
   final RTCVideoRenderer _localRenderer = RTCVideoRenderer();
   final RTCVideoRenderer _remoteRenderer = RTCVideoRenderer();
   String? _currentUserId;
@@ -78,27 +77,9 @@ class CallProvider extends StateNotifier<CallState> {
     }
   }
 
-  /// Initialize current user from Firebase Auth
+  /// Initialize current user (stub)
   void _initializeUser() {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      _currentUserId = user.uid;
-      _currentUserName =
-          user.displayName ?? user.email?.split('@').first ?? 'User';
-      _currentUserAvatar = user.photoURL;
-
-      _signalingService.initialize(
-        userId: _currentUserId!,
-        userName: _currentUserName!,
-        userAvatar: _currentUserAvatar,
-      );
-
-      // Set up event listeners
-      _signalingService.onIncomingCall = _handleIncomingCall;
-      _signalingService.onCallAccepted = _handleCallAccepted;
-      _signalingService.onCallDeclined = _handleCallDeclined;
-      _signalingService.onCallEnded = _handleCallEnded;
-    }
+    // Stub: User will be set from auth provider
   }
 
   /// Handle incoming call
@@ -276,9 +257,9 @@ class CallProvider extends StateNotifier<CallState> {
   }
 }
 
-/// Provider for FirebaseSignalingService
-final signalingServiceProvider = Provider<FirebaseSignalingService>((ref) {
-  return FirebaseSignalingService();
+/// Provider for SupabaseSignalingService
+final signalingServiceProvider = Provider<SupabaseSignalingService>((ref) {
+  return SupabaseSignalingService();
 });
 
 /// Provider for CallProvider

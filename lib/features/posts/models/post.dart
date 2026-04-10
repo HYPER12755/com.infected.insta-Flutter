@@ -1,5 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-
 class Post {
   final String id;
   final String authorId;
@@ -17,14 +15,16 @@ class Post {
     this.likes = const [],
   });
 
-  factory Post.fromDoc(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+  /// Create Post from Map data (Supabase format)
+  factory Post.fromMap(Map<String, dynamic> data, String id) {
     return Post(
-      id: doc.id,
+      id: id,
       authorId: data['authorId'] ?? '',
       imageUrl: data['imageUrl'] ?? '',
       caption: data['caption'],
-      timestamp: (data['timestamp'] as Timestamp).toDate(),
+      timestamp: data['timestamp'] is DateTime
+          ? data['timestamp']
+          : DateTime.now(),
       likes: List<String>.from(data['likes'] ?? []),
     );
   }
@@ -34,7 +34,7 @@ class Post {
       'authorId': authorId,
       'imageUrl': imageUrl,
       'caption': caption,
-      'timestamp': Timestamp.fromDate(timestamp),
+      'timestamp': timestamp.toIso8601String(),
       'likes': likes,
     };
   }

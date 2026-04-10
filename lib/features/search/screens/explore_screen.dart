@@ -146,7 +146,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
           );
         }
 
-        // Use Firebase results only
+        // Use search results
         final users = snapshot.data ?? [];
 
         return ListView(
@@ -174,7 +174,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            // User results from Firebase or fallback
+            // User results
             ...users.asMap().entries.map(
               (entry) => _buildUserResultFromData(entry.key, entry.value),
             ),
@@ -429,7 +429,7 @@ class UserSearchResultsScreen extends StatelessWidget {
             );
           }
 
-          // Use Firebase results only
+          // Use search results
           final users = snapshot.data ?? [];
 
           return ListView.builder(

@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:infected_insta/firebase_options.dart';
 import 'package:infected_insta/features/settings/application/settings_provider.dart';
 import 'package:infected_insta/router.dart';
+import 'package:infected_insta/supabase/supabase_client.dart';
 
 // Provider for Settings using Provider (not StateNotifierProvider)
 final settingsProvider = Provider<SettingsProvider>((ref) {
@@ -14,16 +13,10 @@ final settingsProvider = Provider<SettingsProvider>((ref) {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Initialize Firebase
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-  
-  runApp(
-    const ProviderScope(
-      child: MyApp(),
-    ),
-  );
+  // Initialize Supabase client
+  await SupabaseConfig.initialize();
+
+  runApp(const ProviderScope(child: MyApp()));
 }
 
 class MyApp extends ConsumerWidget {
@@ -32,7 +25,7 @@ class MyApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref.watch(settingsProvider);
-    
+
     const primaryColor = Color(0xFFC039FF);
     const backgroundColor = Color(0xFF121212);
     const surfaceColor = Color(0xFF1E1E1E);
@@ -73,7 +66,10 @@ class MyApp extends ConsumerWidget {
           borderRadius: BorderRadius.circular(8),
           borderSide: const BorderSide(color: primaryColor, width: 1.5),
         ),
-        contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+        contentPadding: const EdgeInsets.symmetric(
+          vertical: 16,
+          horizontal: 12,
+        ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
