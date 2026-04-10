@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:infected_insta/features/call/models/call_model.dart';
-import 'package:infected_insta/supabase/supabase_client.dart';
 
 /// Callback types for signaling events
 typedef OnCallCreated = void Function(CallModel call);

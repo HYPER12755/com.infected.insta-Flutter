@@ -2,6 +2,7 @@
 ///
 /// All URLs should be configured here and accessed via AppConfig.
 /// This allows for easy configuration across different environments.
+library;
 
 class AppConfig {
   // Supabase Configuration

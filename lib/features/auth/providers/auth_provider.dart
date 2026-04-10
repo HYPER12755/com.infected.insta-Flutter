@@ -1,6 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:infected_insta/features/auth/data/auth_repository.dart';
 import 'package:infected_insta/supabase/supabase_client.dart';
 import 'package:infected_insta/features/auth/presentation/providers.dart';
 

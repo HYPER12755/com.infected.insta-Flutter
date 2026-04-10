@@ -442,7 +442,7 @@ class SupabaseSignalingService {
       _channel = _supabase.channel('call-$roomId');
       
       // Try to subscribe - will fail gracefully if API is wrong
-      await _channel!.subscribe();
+      _channel!.subscribe();
       
       debugPrint('Subscribed to call channel: call-$roomId');
     } catch (e) {

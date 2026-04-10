@@ -72,7 +72,7 @@ class PresenceService {
       'last_seen': DateTime.now().toIso8601String(),
     });
     
-    await _presenceChannel!.subscribe();
+    _presenceChannel!.subscribe();
   }
 
   /// Announce online status

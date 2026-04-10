@@ -49,7 +49,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
       final storageService = SupabaseStorageService(supabase);
       final uuid = const Uuid();
       final imageId = uuid.v4();
-      final imagePath = '${userId}/${imageId}.jpg';
+      final imagePath = '$userId/$imageId.jpg';
       
       // Upload the image to Supabase Storage
       await storageService.uploadFile(

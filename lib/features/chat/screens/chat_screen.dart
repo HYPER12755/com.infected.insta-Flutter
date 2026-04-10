@@ -58,7 +58,7 @@ class _ChatListState extends State<_ChatList> {
 
     try {
       final messageRepo = MessageRepository();
-      final result = await messageRepo.getConversations(_currentUserId!);
+      final result = await messageRepo.getConversations(_currentUserId);
       
       result.fold(
         (error) {

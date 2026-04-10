@@ -20,7 +20,7 @@ class _EmailVerificationScreenState extends ConsumerState<EmailVerificationScree
   void initState() {
     super.initState();
     _timer = Timer.periodic(const Duration(seconds: 3), (timer) async {
-      final isEmailVerified = await ref.read(authRepositoryProvider).isEmailVerified();
+      final isEmailVerified = ref.read(authRepositoryProvider).isEmailVerified();
       if (isEmailVerified) {
         timer.cancel();
         if (!mounted) return;
