@@ -8,12 +8,12 @@ class AppConfig {
   // Supabase Configuration
   static const String supabaseUrl = String.fromEnvironment(
     'SUPABASE_URL',
-    defaultValue: 'YOUR_SUPABASE_URL',
+    defaultValue: 'https://mrvggotawuxvopjhfagb.supabase.co',
   );
 
   static const String supabaseAnonKey = String.fromEnvironment(
     'SUPABASE_ANON_KEY',
-    defaultValue: 'YOUR_SUPABASE_ANON_KEY',
+    defaultValue: 'sb_publishable_RZHUbEH2iQ_pxpsZrtwg7g_1L0gYHJ5',
   );
 
   // External Service URLs
@@ -47,7 +47,9 @@ class AppConfig {
   }
 
   static bool isSupabaseConfigured() {
-    return supabaseUrl != 'YOUR_SUPABASE_URL' &&
+    return supabaseUrl.isNotEmpty &&
+        supabaseUrl != 'YOUR_SUPABASE_URL' &&
+        supabaseAnonKey.isNotEmpty &&
         supabaseAnonKey != 'YOUR_SUPABASE_ANON_KEY';
   }
 }
