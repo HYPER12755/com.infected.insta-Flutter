@@ -24,13 +24,13 @@ class FiltersData {
     // Apply opacity based on filter name
     switch (filterName) {
       case 'Clarendon':
-        return color.withOpacity(0.3);
+        return color.withValues(alpha: 0.3);
       case 'Gingham':
       case 'Lark':
       case 'Reyes':
-        return color.withOpacity(0.2);
+        return color.withValues(alpha: 0.2);
       case 'Moon':
-        return color.withOpacity(0.4);
+        return color.withValues(alpha: 0.4);
       default:
         return null;
     }

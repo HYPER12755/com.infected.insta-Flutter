@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Premium Splash Screen with glassmorphism and animations
 class SplashScreen extends StatefulWidget {
@@ -43,13 +44,13 @@ class _SplashScreenState extends State<SplashScreen>
     
     _controller.forward();
     
-    // Navigate to auth screen after animation
-    _navigationTimer = Timer(const Duration(milliseconds: 3000), () {
+    // Navigate after animation — respect existing session
+    _navigationTimer = Timer(const Duration(milliseconds: 2500), () {
       if (mounted) {
-        // Use GoRouter for navigation - wait for frame to be ready
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) {
-            GoRouter.of(context).go('/auth');
+            final session = Supabase.instance.client.auth.currentSession;
+            GoRouter.of(context).go(session != null ? '/home' : '/auth');
           }
         });
       }

@@ -20,30 +20,46 @@ class UserRepository extends BaseRepository {
     return currentUser != null;
   }
 
-  /// Get user profile data
-  /// Returns a Result with user data or error/not found
+  /// Get user profile data with follower/following counts
   Future<Result<Map<String, dynamic>>> getUserProfile(String userId) async {
     try {
-      final response = await supabase
-          .from('profiles')
-          .select()
-          .eq('id', userId)
-          .maybeSingle();
+      // Try UUID lookup first; fall back to username lookup if not a valid UUID
+      final isUuid = RegExp(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
+          caseSensitive: false).hasMatch(userId);
 
-      if (response == null) {
-        return const Failure(
-          NotFoundException(message: 'User profile not found'),
-        );
+      dynamic response;
+      if (isUuid) {
+        response = await supabase.from('profiles').select().eq('id', userId).maybeSingle();
+      } else {
+        response = await supabase.from('profiles').select().eq('username', userId).maybeSingle();
       }
 
-      return Success(response);
+      if (response == null) {
+        return const Failure(NotFoundException(message: 'User profile not found'));
+      }
+
+      // Fetch follower & following counts separately
+      final followerRows = await supabase
+          .from('follows')
+          .select()
+          .eq('following_id', userId);
+      final followingRows = await supabase
+          .from('follows')
+          .select()
+          .eq('follower_id', userId);
+
+      final enriched = {
+        ...response,
+        'followers_count': (followerRows as List).length,
+        'following_count': (followingRows as List).length,
+      };
+
+      return Success(enriched);
     } catch (e) {
-      return Failure(
-        DatabaseException(
-          message: 'Failed to get user profile: ${e.toString()}',
-          originalError: e,
-        ),
-      );
+      return Failure(DatabaseException(
+        message: 'Failed to get user profile: ${e.toString()}',
+        originalError: e,
+      ));
     }
   }
 
@@ -142,13 +158,31 @@ class UserRepository extends BaseRepository {
   ) async {
     try {
       // Get users that the current user is not following
-      final response = await supabase
-          .from('profiles')
-          .select()
-          .neq('id', currentUserId)
-          .limit(10);
+      // Get IDs of users already followed
+      final followed = await supabase
+          .from('follows')
+          .select('following_id')
+          .eq('follower_id', currentUserId);
+      final followedIds = (followed as List)
+          .map((r) => r['following_id'] as String)
+          .toList();
 
-      return Success(response);
+      var query = supabase.from('profiles').select();
+      // Exclude self
+      query = query.neq('id', currentUserId);
+      
+      final response = await query.limit(20);
+      
+      // Filter out already-followed in Dart (Supabase free tier has limited filter ops)
+      final filtered = (response as List)
+          .where((u) => !followedIds.contains(u['id']))
+          .take(10)
+          .toList();
+      
+      final List<Map<String, dynamic>> typedResponse = filtered
+          .map((u) => u as Map<String, dynamic>)
+          .toList();
+      return Success(typedResponse);
     } catch (e) {
       return Failure(
         DatabaseException(
@@ -161,6 +195,35 @@ class UserRepository extends BaseRepository {
 
   /// Create user profile
   /// Returns a Result indicating success or failure
+  /// Get user profile by username (resolves username → UUID)
+  Future<Result<Map<String, dynamic>>> getUserByUsername(String username) async {
+    try {
+      final response = await supabase
+          .from('profiles')
+          .select()
+          .eq('username', username)
+          .maybeSingle();
+      if (response == null) return const Failure(NotFoundException(message: 'User not found'));
+      return Success(response as Map<String, dynamic>);
+    } catch (e) {
+      return Failure(DatabaseException(message: e.toString(), originalError: e));
+    }
+  }
+
+  Future<bool> isFollowing(String followerId, String followingId) async {
+    try {
+      final res = await supabase
+          .from('follows')
+          .select('follower_id')
+          .eq('follower_id', followerId)
+          .eq('following_id', followingId)
+          .maybeSingle();
+      return res != null;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<Result<void>> createUserProfile(
     String userId,
     Map<String, dynamic> userData,

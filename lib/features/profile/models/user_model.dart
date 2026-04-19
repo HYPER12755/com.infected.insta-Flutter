@@ -3,6 +3,7 @@ class User {
   final String username;
   final String name;
   final String bio;
+  final String website;
   final String avatarUrl;
   final int followers;
   final int following;
@@ -13,6 +14,7 @@ class User {
     required this.username,
     required this.name,
     required this.bio,
+    this.website = '',
     required this.avatarUrl,
     required this.followers,
     required this.following,

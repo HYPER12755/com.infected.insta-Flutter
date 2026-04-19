@@ -102,12 +102,79 @@ class SupabaseSignalingService {
   // Connection state
   CallConnectionState _connectionState = CallConnectionState.idle;
 
-  // ICE servers configuration
+  // ── ICE Server Configuration ───────────────────────────────────────────────
+  //
+  // Strategy: FREE-TIER FALLBACK
+  // WebRTC naturally tries candidates in priority order:
+  //   1. host (direct LAN)  — free, no relay
+  //   2. srflx (STUN/NAT)   — free, no relay
+  //   3. relay (TURN)        — uses your Metered free-tier quota
+  //
+  // TURN is ONLY contacted when host + STUN candidates all fail.
+  // iceCandidatePoolSize = 0  → candidates gathered on-demand, not pre-fetched,
+  //   so TURN servers are never contacted unless the connection actually needs them.
+  //
+  // Metered free tier: 500 MB/month relay bandwidth.
+  // Most calls on the same network or with open NATs never touch TURN at all.
+
+  static const String _turnUsername = '1575304bdb73d5dd86d6f997';
+  static const String _turnCredential = 'yszsvsDGGtvh3TfI';
+
+  // Free public STUN servers — tried first, no quota cost
+  static const List<Map<String, dynamic>> _stunServers = [
+    {'urls': 'stun:stun.l.google.com:19302'},
+    {'urls': 'stun:stun1.l.google.com:19302'},
+    {'urls': 'stun:stun2.l.google.com:19302'},
+    {'urls': 'stun:stun.relay.metered.ca:80'},
+  ];
+
+  // Metered TURN — FALLBACK ONLY, used only when P2P fails entirely
+  static const List<Map<String, dynamic>> _turnServers = [
+    // UDP 80 — fastest relay, try first
+    {
+      'urls': 'turn:global.relay.metered.ca:80',
+      'username': _turnUsername,
+      'credential': _turnCredential,
+    },
+    // TCP 80 — for UDP-blocking networks
+    {
+      'urls': 'turn:global.relay.metered.ca:80?transport=tcp',
+      'username': _turnUsername,
+      'credential': _turnCredential,
+    },
+    // UDP 443 — for corporate firewalls
+    {
+      'urls': 'turn:global.relay.metered.ca:443',
+      'username': _turnUsername,
+      'credential': _turnCredential,
+    },
+    // TURNS TLS 443 — last resort, works everywhere
+    {
+      'urls': 'turns:global.relay.metered.ca:443?transport=tcp',
+      'username': _turnUsername,
+      'credential': _turnCredential,
+    },
+  ];
+
+  // Combined list: STUN always present, TURN appended as fallback
+  static List<Map<String, dynamic>> get _allIceServers =>
+      [..._stunServers, ..._turnServers];
+
   final Map<String, dynamic> _iceServers = {
-    'iceServers': [
-      {'urls': 'stun:stun.l.google.com:19302'},
-      {'urls': 'stun:stun1.l.google.com:19302'},
-    ]
+    'iceServers': _allIceServers,
+
+    // iceCandidatePoolSize = 0 → no pre-fetching.
+    // Candidates (including TURN) are gathered only when a call is placed,
+    // and only the minimum set needed to establish the connection is used.
+    'iceCandidatePoolSize': 0,
+
+    // 'all' = try everything (host → STUN → TURN in priority order).
+    // Use 'relay' only if you want to FORCE TURN (wastes free-tier quota).
+    'iceTransportPolicy': 'all',
+
+    // Efficient codec/media bundling — reduces relay bandwidth usage
+    'bundlePolicy': 'max-bundle',
+    'rtcpMuxPolicy': 'require',
   };
 
   // Event listeners
@@ -327,9 +394,13 @@ class SupabaseSignalingService {
         'id': call.callId,
         'caller_id': call.callerId,
         'callee_id': call.calleeId,
+        'caller_name': call.callerName,
+        'caller_avatar': call.callerAvatar ?? '',
+        'callee_name': call.calleeName,
         'room_id': call.roomId,
         'status': 'ringing',
         'call_type': callType == CallType.video ? 'video' : 'audio',
+        'created_at': DateTime.now().toIso8601String(),
       });
     } catch (e) {
       debugPrint('Error creating call record: $e');
@@ -432,23 +503,41 @@ class SupabaseSignalingService {
   /// This method attempts to use Supabase Realtime, but falls back
   /// to database polling if Realtime is unavailable.
   Future<void> _setupCallChannel(String roomId) async {
-    // Clean up existing channel
     await _cleanupChannel();
-
     _currentChannelId = roomId;
-    
+
     try {
-      // Try to create a channel
       _channel = _supabase.channel('call-$roomId');
-      
-      // Try to subscribe - will fail gracefully if API is wrong
-      _channel!.subscribe();
-      
-      debugPrint('Subscribed to call channel: call-$roomId');
+
+      // Listen for broadcast signals from the other peer
+      _channel!
+          .onBroadcast(
+            event: 'signal',
+            callback: (payload) async {
+              try {
+                final signal = Map<String, dynamic>.from(payload);
+                final senderId = signal['sender_id'] as String?;
+                if (senderId != null && senderId != _currentUserId) {
+                  await _handleSignal(signal);
+                }
+              } catch (e) {
+                debugPrint('Signal handler error: $e');
+              }
+            },
+          )
+          .subscribe((status, [err]) {
+            debugPrint('Call channel status: $status');
+            if (status == RealtimeSubscribeStatus.subscribed) {
+              debugPrint('Subscribed to call channel: call-$roomId');
+            } else if (err != null) {
+              debugPrint('Channel error: $err — falling back to DB polling');
+              startSignalPolling();
+            }
+          });
     } catch (e) {
-      debugPrint('Realtime channel error, will use database polling: $e');
-      // Continue without Realtime - we'll use database polling instead
+      debugPrint('Realtime channel setup failed: $e — using DB polling');
       _channel = null;
+      startSignalPolling();
     }
   }
 
@@ -491,39 +580,39 @@ class SupabaseSignalingService {
   /// This stores signaling data in the database which the other party can poll for.
   /// This is a reliable fallback when Realtime broadcast is unavailable.
   Future<void> _sendSignal(Map<String, dynamic> signal) async {
-    if (_currentCall != null) {
+    if (_currentCall == null || _currentUserId == null) return;
+
+    // Attach sender ID so recipient can ignore own signals
+    final payload = {...signal, 'sender_id': _currentUserId};
+
+    // 1. Try broadcast via Realtime channel (fastest, no DB write)
+    if (_channel != null) {
       try {
-        // Store signaling data in database for the other party to receive
-        await _supabase.from('call_signals').upsert({
-          'call_id': _currentCall!.callId,
-          'sender_id': _currentUserId,
-          'signal_type': signal['type'] as String?,
-          'signal_data': signal,
-          'created_at': DateTime.now().toIso8601String(),
-        });
+        await _channel!.sendBroadcastMessage(
+          event: 'signal',
+          payload: payload,
+        );
+        return;
       } catch (e) {
-        debugPrint('Error sending signal via database: $e');
-        // Try alternative storage
-        await _sendSignalAlternative(signal);
+        debugPrint('Broadcast failed, falling back to DB: $e');
       }
+    }
+
+    // 2. Fallback: write to call_signals table (polled by other peer)
+    try {
+      await _supabase.from('call_signals').upsert({
+        'call_id': _currentCall!.callId,
+        'sender_id': _currentUserId,
+        'signal_type': signal['type'] as String?,
+        'signal_data': payload,
+        'created_at': DateTime.now().toIso8601String(),
+      });
+    } catch (e) {
+      debugPrint('DB signal fallback also failed: $e');
     }
   }
 
-  /// Alternative signal method using JSON storage
-  Future<void> _sendSignalAlternative(Map<String, dynamic> signal) async {
-    if (_currentCall != null) {
-      try {
-        // Alternative: store in a simple key-value table
-        await _supabase.from('call_metadata').upsert({
-          'call_id': _currentCall!.callId,
-          'key': 'signal',
-          'value': signal.toString(),
-        });
-      } catch (e) {
-        debugPrint('Alternative signal error: $e');
-      }
-    }
-  }
+  // (Alternative signal method removed - call_metadata table not in schema)
 
   /// Handle incoming signaling message
   Future<void> _handleSignal(Map<String, dynamic> signal) async {
@@ -703,12 +792,46 @@ class SupabaseSignalingService {
   /// This sets up a global listener to detect incoming call requests.
   /// The actual implementation uses Realtime database changes or 
   /// a personal notification channel.
+  /// Listen for incoming call requests via Supabase Realtime DB stream.
+  /// Call this once after the user is authenticated.
   void listenForIncomingCalls() {
-    // Set up a global channel to listen for incoming call requests
-    // This can be done in multiple ways:
-    // 1. Listen to database changes via realtime
-    // 2. Use a personal notification channel
-    
-    debugPrint('Listening for incoming calls via Supabase Realtime');
+    if (_currentUserId == null) return;
+
+    // Stream the calls table for rows where this user is the callee and status = ringing
+    _supabase
+        .from('calls')
+        .stream(primaryKey: ['id'])
+        .eq('callee_id', _currentUserId!)
+        .listen((rows) {
+          for (final row in rows) {
+            final status = row['status'] as String?;
+            if (status != 'ringing') continue;
+
+            final callId = row['id'] as String?;
+            if (callId == null) continue;
+            // Avoid triggering the same call twice
+            if (_currentCall?.callId == callId) continue;
+
+            final call = CallModel(
+              callId: callId,
+              callerId: row['caller_id'] as String? ?? '',
+              callerName: row['caller_name'] as String? ?? 'Unknown',
+              callerAvatar: row['caller_avatar'] as String?,
+              calleeId: row['callee_id'] as String? ?? '',
+              calleeName: row['callee_name'] as String? ?? '',
+              callType: row['call_type'] == 'video'
+                  ? CallType.video : CallType.audio,
+              status: CallStatus.ringing,
+              roomId: row['room_id'] as String? ?? callId,
+            );
+
+            _currentCall = call;
+            onIncomingCall?.call(call);
+            debugPrint('Incoming call from: ${call.callerName}');
+            break; // process one at a time
+          }
+        });
+
+    debugPrint('Listening for incoming calls for user: $_currentUserId');
   }
 }

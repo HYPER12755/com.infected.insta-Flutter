@@ -1,448 +1,408 @@
 import 'package:flutter/material.dart';
-import 'package:infected_insta/core/theme/instagram_theme.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:go_router/go_router.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
-/// Close Friends Screen - Manage close friends list
-class CloseFriendsScreen extends StatefulWidget {
-  const CloseFriendsScreen({super.key});
+import 'package:infected_insta/core/widgets/shimmer.dart';
+import 'package:infected_insta/data/repositories/post_repository.dart';
+import 'package:infected_insta/data/repositories/user_repository.dart';
+import 'package:infected_insta/supabase/supabase_client.dart';
+
+// ─── Saved Posts Screen ───────────────────────────────────────────────────────
+class SavedPostsScreen extends StatefulWidget {
+  const SavedPostsScreen({super.key});
 
   @override
-  State<CloseFriendsScreen> createState() => _CloseFriendsScreenState();
+  State<SavedPostsScreen> createState() => _SavedPostsScreenState();
 }
 
-class _CloseFriendsScreenState extends State<CloseFriendsScreen> {
-  // No mock data - empty list for production
-  List<Map<String, dynamic>> _friends = [];
+class _SavedPostsScreenState extends State<SavedPostsScreen> {
+  List<Map<String, dynamic>> _posts = [];
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _loadFriends();
+    _load();
   }
 
-  Future<void> _loadFriends() async {
-    // In production, this would fetch from Firestore
-    // For now, show empty state
-    if (mounted) {
-      setState(() {
-        _friends = [];
-        _isLoading = false;
-      });
+  Future<void> _load() async {
+    final uid = supabase.auth.currentUser?.id;
+    if (uid == null) { setState(() => _isLoading = false); return; }
+
+    try {
+      final res = await supabase
+          .from('saved_posts')
+          .select('post_id, posts(id, image_url, caption, user_id, '
+              'profiles!posts_user_id_fkey(username))')
+          .eq('user_id', uid)
+          .order('created_at', ascending: false);
+
+      if (mounted) {
+        setState(() {
+          _posts = (res as List).map<Map<String, dynamic>>((r) {
+            final p = r['posts'] as Map<String, dynamic>? ?? {};
+            return {
+              'id': p['id'],
+              'imageUrl': p['image_url'] ?? '',
+              'caption': p['caption'] ?? '',
+              'username': ((p['profiles'] as Map<String, dynamic>?)?['username']) ?? 'user',
+            };
+          }).toList();
+          _isLoading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => _PostGridScreen(
+    title: 'Saved',
+    posts: _posts,
+    isLoading: _isLoading,
+    emptyIcon: FontAwesomeIcons.bookmark,
+    emptyMessage: 'Save photos and videos',
+    emptySubtitle: 'Save photos and videos that you want to see again. No one is notified.',
+  );
+}
+
+// ─── Archive Screen ───────────────────────────────────────────────────────────
+class ArchiveViewScreen extends StatefulWidget {
+  const ArchiveViewScreen({super.key});
+
+  @override
+  State<ArchiveViewScreen> createState() => _ArchiveViewScreenState();
+}
+
+class _ArchiveViewScreenState extends State<ArchiveViewScreen> {
+  List<Map<String, dynamic>> _posts = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final uid = supabase.auth.currentUser?.id;
+    if (uid == null) { setState(() => _isLoading = false); return; }
+
+    try {
+      final res = await supabase
+          .from('posts')
+          .select('id, image_url, caption')
+          .eq('user_id', uid)
+          .eq('is_archived', true)
+          .order('created_at', ascending: false);
+
+      if (mounted) {
+        setState(() {
+          _posts = (res as List).map<Map<String, dynamic>>((p) => {
+            'id': p['id'],
+            'imageUrl': p['image_url'] ?? '',
+            'caption': p['caption'] ?? '',
+          }).toList();
+          _isLoading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => _PostGridScreen(
+    title: 'Archive',
+    posts: _posts,
+    isLoading: _isLoading,
+    emptyIcon: FontAwesomeIcons.archive,
+    emptyMessage: 'Archive posts',
+    emptySubtitle: 'Archived posts are only visible to you.',
+  );
+}
+
+// ─── Tagged Posts Screen ──────────────────────────────────────────────────────
+class TaggedPostsScreen extends StatefulWidget {
+  const TaggedPostsScreen({super.key});
+
+  @override
+  State<TaggedPostsScreen> createState() => _TaggedPostsScreenState();
+}
+
+class _TaggedPostsScreenState extends State<TaggedPostsScreen> {
+  List<Map<String, dynamic>> _posts = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final uid = supabase.auth.currentUser?.id;
+    if (uid == null) { setState(() => _isLoading = false); return; }
+
+    try {
+      final res = await supabase
+          .from('post_tags')
+          .select('post_id, posts(id, image_url, caption)')
+          .eq('tagged_user_id', uid)
+          .order('created_at', ascending: false);
+
+      if (mounted) {
+        setState(() {
+          _posts = (res as List).map<Map<String, dynamic>>((r) {
+            final p = r['posts'] as Map<String, dynamic>? ?? {};
+            return {
+              'id': p['id'],
+              'imageUrl': p['image_url'] ?? '',
+              'caption': p['caption'] ?? '',
+            };
+          }).toList();
+          _isLoading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => _PostGridScreen(
+    title: 'Tagged',
+    posts: _posts,
+    isLoading: _isLoading,
+    emptyIcon: FontAwesomeIcons.userTag,
+    emptyMessage: 'Photos of You',
+    emptySubtitle: 'When people tag you in photos, they\'ll appear here.',
+  );
+}
+
+// ─── Followers / Following List Screen ───────────────────────────────────────
+class FollowListScreen extends StatefulWidget {
+  final String userId;
+  final String type; // 'followers' or 'following'
+  final String username;
+
+  const FollowListScreen({
+    super.key,
+    required this.userId,
+    required this.type,
+    required this.username,
+  });
+
+  @override
+  State<FollowListScreen> createState() => _FollowListScreenState();
+}
+
+class _FollowListScreenState extends State<FollowListScreen> {
+  List<Map<String, dynamic>> _users = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      List<dynamic> res;
+      if (widget.type == 'followers') {
+        res = await supabase
+            .from('follows')
+            .select('follower_id, profiles!follows_follower_id_fkey(id, username, avatar_url, full_name)')
+            .eq('following_id', widget.userId);
+      } else {
+        res = await supabase
+            .from('follows')
+            .select('following_id, profiles!follows_following_id_fkey(id, username, avatar_url, full_name)')
+            .eq('follower_id', widget.userId);
+      }
+
+      final myId = supabase.auth.currentUser?.id;
+
+      if (mounted) {
+        setState(() {
+          _users = res.map<Map<String, dynamic>>((r) {
+            final key = widget.type == 'followers' ? 'profiles' : 'profiles';
+            final p = (r[key] as Map<String, dynamic>?) ?? {};
+            return {
+              'id': p['id'],
+              'username': p['username'] ?? 'user',
+              'avatar': p['avatar_url'] ?? '',
+              'name': p['full_name'] ?? p['username'] ?? '',
+              'isMe': p['id'] == myId,
+              'isFollowing': false, // check asynchronously if needed
+            };
+          }).toList();
+          _isLoading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _toggleFollow(int i) async {
+    final uid = supabase.auth.currentUser?.id;
+    if (uid == null) return;
+    final user = _users[i];
+    final was = user['isFollowing'] as bool;
+    setState(() => _users[i]['isFollowing'] = !was);
+
+    if (!was) {
+      await supabase.from('follows').upsert(
+          {'follower_id': uid, 'following_id': user['id']});
+    } else {
+      await supabase.from('follows').delete()
+          .match({'follower_id': uid, 'following_id': user['id']});
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final primary = Theme.of(context).primaryColor;
+    final title = widget.type == 'followers' ? 'Followers' : 'Following';
+
     return Scaffold(
-      backgroundColor: InstagramColors.darkBackground,
+      backgroundColor: const Color(0xFF0D0D1A),
       appBar: AppBar(
-        backgroundColor: InstagramColors.darkBackground,
-        title: const Text(
-          'Close Friends',
-          style: TextStyle(color: InstagramColors.darkText),
-        ),
+        backgroundColor: const Color(0xFF0D0D1A),
+        title: Text('${widget.username} — $title'),
       ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Text(
-              'Choose who to add to your close friends list. Only your close friends will see your story at the top of their feed.',
-              style: TextStyle(
-                color: InstagramColors.darkTextSecondary,
-                fontSize: 14,
-              ),
-            ),
-          ),
-          Expanded(
-            child: ListView.builder(
-              itemCount: _friends.length,
-              itemBuilder: (context, index) {
-                final friend = _friends[index];
-                return ListTile(
-                  leading: CircleAvatar(
-                    radius: 20,
-                    backgroundColor: InstagramColors.primary,
-                    child: Text(
-                      friend['username'][0].toUpperCase(),
-                      style: const TextStyle(color: Colors.white),
-                    ),
-                  ),
-                  title: Text(
-                    friend['username'],
-                    style: const TextStyle(
-                      color: InstagramColors.darkText,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  trailing: Container(
-                    width: 48,
-                    height: 28,
-                    decoration: BoxDecoration(
-                      color: friend['isAdded']
-                          ? InstagramColors.primary
-                          : InstagramColors.darkSurface,
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Center(
-                      child: Icon(
-                        friend['isAdded'] ? Icons.check : Icons.add,
-                        color: Colors.white,
-                        size: 18,
+      body: _isLoading
+          ? ListView.builder(itemCount: 6,
+              itemBuilder: (_, __) => const UserTileSkeleton())
+          : _users.isEmpty
+              ? Center(child: Text('No $title yet',
+                  style: const TextStyle(color: Colors.white54)))
+              : ListView.builder(
+                  itemCount: _users.length,
+                  itemBuilder: (_, i) {
+                    final u = _users[i];
+                    final avatar = u['avatar'] as String? ?? '';
+                    final isMe = u['isMe'] == true;
+                    final isFollowing = u['isFollowing'] == true;
+
+                    return ListTile(
+                      leading: GestureDetector(
+                        onTap: () => context.push('/profile/${u['username']}'),
+                        child: CircleAvatar(
+                          backgroundColor: const Color(0xFF2A2A3E),
+                          backgroundImage: avatar.isNotEmpty
+                              ? CachedNetworkImageProvider(avatar) as ImageProvider : null,
+                          child: avatar.isEmpty
+                              ? Text((u['username'] as String? ?? 'U')[0].toUpperCase(),
+                                  style: const TextStyle(color: Colors.white)) : null,
+                        ),
                       ),
-                    ),
-                  ),
-                  onTap: () {
-                    // Toggle friend
+                      title: Text(u['username'] ?? '',
+                          style: const TextStyle(fontWeight: FontWeight.w600)),
+                      subtitle: u['name'] != u['username'] && (u['name'] as String).isNotEmpty
+                          ? Text(u['name'] ?? '',
+                              style: const TextStyle(color: Colors.white54))
+                          : null,
+                      trailing: isMe
+                          ? null
+                          : GestureDetector(
+                              onTap: () => _toggleFollow(i),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 200),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 14, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: isFollowing
+                                      ? const Color(0xFF2A2A3E) : primary,
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(isFollowing ? 'Following' : 'Follow',
+                                    style: TextStyle(
+                                      color: isFollowing ? Colors.white54 : Colors.white,
+                                      fontWeight: FontWeight.w600, fontSize: 12)),
+                              ),
+                            ),
+                      onTap: () => context.push('/profile/${u['username']}'),
+                    );
                   },
-                );
-              },
-            ),
-          ),
-        ],
-      ),
+                ),
     );
   }
 }
 
-/// Guides Screen - Collection/Guides feature
-class GuidesScreen extends StatelessWidget {
-  const GuidesScreen({super.key});
+// ─── Shared Post Grid Screen ──────────────────────────────────────────────────
+class _PostGridScreen extends StatelessWidget {
+  final String title;
+  final List<Map<String, dynamic>> posts;
+  final bool isLoading;
+  final FaIconData emptyIcon;
+  final String emptyMessage;
+  final String emptySubtitle;
+
+  const _PostGridScreen({
+    required this.title,
+    required this.posts,
+    required this.isLoading,
+    required this.emptyIcon,
+    required this.emptyMessage,
+    required this.emptySubtitle,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: InstagramColors.darkBackground,
+      backgroundColor: const Color(0xFF0D0D1A),
       appBar: AppBar(
-        backgroundColor: InstagramColors.darkBackground,
-        title: const Text(
-          'Guides',
-          style: TextStyle(color: InstagramColors.darkText),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add, color: InstagramColors.darkText),
-            onPressed: () {},
-          ),
-        ],
+        backgroundColor: const Color(0xFF0D0D1A),
+        title: Text(title),
       ),
-      body: const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.menu_book_outlined,
-              size: 64,
-              color: InstagramColors.darkTextSecondary,
-            ),
-            SizedBox(height: 16),
-            Text(
-              'No guides yet',
-              style: TextStyle(
-                color: InstagramColors.darkText,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            SizedBox(height: 8),
-            Text(
-              'Save posts and create guides\nthat you can share',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: InstagramColors.darkTextSecondary),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Shop Screen - Instagram Shop feature
-class ShopScreen extends StatelessWidget {
-  const ShopScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: InstagramColors.darkBackground,
-      appBar: AppBar(
-        backgroundColor: InstagramColors.darkBackground,
-        title: const Text(
-          'Shop',
-          style: TextStyle(color: InstagramColors.darkText),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(
-              Icons.settings_outlined,
-              color: InstagramColors.darkText,
-            ),
-            onPressed: () {},
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          // Categories
-          Container(
-            height: 40,
-            margin: const EdgeInsets.symmetric(vertical: 8),
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              children: [
-                _buildCategory('All', true),
-                _buildCategory('Curated', false),
-                _buildCategory('Mens', false),
-                _buildCategory('Womens', false),
-                _buildCategory('Kids', false),
-                _buildCategory('Electronics', false),
-              ],
-            ),
-          ),
-          // Products grid
-          Expanded(
-            child: GridView.builder(
-              padding: const EdgeInsets.all(8),
+      body: isLoading
+          ? GridView.builder(
+              padding: const EdgeInsets.all(1),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                crossAxisSpacing: 8,
-                mainAxisSpacing: 8,
-                childAspectRatio: 0.7,
-              ),
-              itemCount: 10,
-              itemBuilder: (context, index) {
-                return Container(
-                  decoration: BoxDecoration(
-                    color: InstagramColors.darkSurface,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: InstagramColors.darkSecondary,
-                            borderRadius: const BorderRadius.vertical(
-                              top: Radius.circular(12),
-                            ),
-                          ),
-                          child: const Center(
-                            child: Icon(
-                              Icons.shopping_bag_outlined,
-                              size: 48,
-                              color: InstagramColors.darkTextSecondary,
-                            ),
-                          ),
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.all(8),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Product $index',
-                              style: const TextStyle(
-                                color: InstagramColors.darkText,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            Text(
-                              '\$${(index + 1) * 10}',
-                              style: const TextStyle(
-                                color: InstagramColors.primary,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCategory(String name, bool isSelected) {
-    return Container(
-      margin: const EdgeInsets.only(right: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: isSelected
-            ? InstagramColors.primary
-            : InstagramColors.darkSurface,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Center(
-        child: Text(
-          name,
-          style: TextStyle(
-            color: isSelected
-                ? Colors.white
-                : InstagramColors.darkTextSecondary,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-          ),
-        ),
-      ),
+                  crossAxisCount: 3, crossAxisSpacing: 2, mainAxisSpacing: 2),
+              itemCount: 9,
+              itemBuilder: (_, __) => const GridItemSkeleton())
+          : posts.isEmpty
+              ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    FaIcon(emptyIcon, size: 48, color: Colors.white24),
+                    const SizedBox(height: 16),
+                    Text(emptyMessage,
+                        style: const TextStyle(color: Colors.white70,
+                            fontSize: 16, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 40),
+                      child: Text(emptySubtitle,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: Colors.white.withValues(alpha: 0.35))),
+                    ),
+                  ]))
+              : GridView.builder(
+                  padding: const EdgeInsets.all(1),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 3, crossAxisSpacing: 2, mainAxisSpacing: 2),
+                  itemCount: posts.length,
+                  itemBuilder: (_, i) {
+                    final imageUrl = posts[i]['imageUrl'] as String? ?? '';
+                    return GestureDetector(
+                      onTap: () => context.push('/post/${posts[i]['id']}'),
+                      child: imageUrl.isNotEmpty
+                          ? CachedNetworkImage(imageUrl: imageUrl, fit: BoxFit.cover,
+                              placeholder: (_, __) => const GridItemSkeleton(),
+                              errorWidget: (_, __, ___) =>
+                                  Container(color: const Color(0xFF2A2A3E)))
+                          : Container(color: const Color(0xFF2A2A3E)),
+                    );
+                  },
+                ),
     );
   }
 }
 
-/// Live Stream Screen
-class LiveStreamScreen extends StatelessWidget {
-  const LiveStreamScreen({super.key});
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: Stack(
-        children: [
-          // Live video placeholder
-          const Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.videocam_outlined, size: 80, color: Colors.white54),
-                SizedBox(height: 16),
-                Text(
-                  'Go Live',
-                  style: TextStyle(color: Colors.white, fontSize: 24),
-                ),
-                SizedBox(height: 8),
-                Text(
-                  'Tap to start a live video',
-                  style: TextStyle(color: Colors.white54),
-                ),
-              ],
-            ),
-          ),
-          // Top bar
-          Positioned(
-            top: MediaQuery.of(context).padding.top + 16,
-            left: 16,
-            right: 16,
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.red,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: const Row(
-                    children: [
-                      Icon(Icons.circle, color: Colors.white, size: 8),
-                      SizedBox(width: 4),
-                      Text(
-                        'LIVE',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const Spacer(),
-                const Text('0 watching', style: TextStyle(color: Colors.white)),
-              ],
-            ),
-          ),
-          // Bottom controls
-          Positioned(
-            bottom: MediaQuery.of(context).padding.bottom + 32,
-            left: 16,
-            right: 16,
-            child: Row(
-              children: [
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.white54),
-                      borderRadius: BorderRadius.circular(24),
-                    ),
-                    child: const Text(
-                      'Comment...',
-                      style: TextStyle(color: Colors.white54),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                const Icon(
-                  Icons.favorite_border,
-                  color: Colors.white,
-                  size: 28,
-                ),
-                const SizedBox(width: 12),
-                const Icon(Icons.share, color: Colors.white, size: 28),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Map Explore Screen - Location based posts
-class MapExploreScreen extends StatelessWidget {
-  const MapExploreScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: InstagramColors.darkBackground,
-      appBar: AppBar(
-        backgroundColor: InstagramColors.darkBackground,
-        title: const Text(
-          'Explore',
-          style: TextStyle(color: InstagramColors.darkText),
-        ),
-      ),
-      body: const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.map_outlined,
-              size: 64,
-              color: InstagramColors.darkTextSecondary,
-            ),
-            SizedBox(height: 16),
-            Text(
-              'Explore Map',
-              style: TextStyle(
-                color: InstagramColors.darkText,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            SizedBox(height: 8),
-            Text(
-              'Discover posts from\nplaces around you',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: InstagramColors.darkTextSecondary),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}

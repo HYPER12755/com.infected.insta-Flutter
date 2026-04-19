@@ -1,8 +1,8 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:infected_insta/features/call/models/call_model.dart';
 import 'package:infected_insta/features/call/services/supabase_signaling_service.dart';
+import 'package:infected_insta/supabase/supabase_client.dart';
 
 /// State class for the call feature
 class CallState {
@@ -49,89 +49,56 @@ class CallState {
   }
 }
 
-/// Call provider for state management using Riverpod
+/// Call provider — manages WebRTC call lifecycle via SupabaseSignalingService
 class CallProvider extends StateNotifier<CallState> {
   final SupabaseSignalingService _signalingService;
-  final RTCVideoRenderer _localRenderer = RTCVideoRenderer();
-  final RTCVideoRenderer _remoteRenderer = RTCVideoRenderer();
-  String? _currentUserId;
-  String? _currentUserName;
-  String? _currentUserAvatar;
+  RTCVideoRenderer? _externalLocalRenderer;
+  RTCVideoRenderer? _externalRemoteRenderer;
 
   CallProvider(this._signalingService) : super(const CallState()) {
-    _initializeRenderers();
-    _initializeUser();
+    _initUser();
   }
 
-  /// Initialize video renderers
-  Future<void> _initializeRenderers() async {
-    try {
-      await _localRenderer.initialize();
-      await _remoteRenderer.initialize();
-      _signalingService.setRenderers(
-        local: _localRenderer,
-        remote: _remoteRenderer,
+  void _initUser() {
+    final user = supabase.auth.currentUser;
+    if (user != null) {
+      _signalingService.initialize(
+        userId: user.id,
+        userName: user.userMetadata?['username'] as String? ??
+            user.email?.split('@')[0] ?? 'User',
+        userAvatar: user.userMetadata?['avatar_url'] as String?,
       );
-    } catch (e) {
-      debugPrint('Error initializing renderers: $e');
+      // Wire incoming call handler before starting to listen
+      _signalingService.onIncomingCall = (call) {
+        state = state.copyWith(hasIncomingCall: true, incomingCall: call);
+      };
+      _signalingService.listenForIncomingCalls();
     }
   }
 
-  /// Initialize current user (stub)
-  void _initializeUser() {
-    // Stub: User will be set from auth provider
+  /// Allow the VideoCallScreen to inject its own renderers
+  void setRenderers({
+    required RTCVideoRenderer local,
+    required RTCVideoRenderer remote,
+  }) {
+    _externalLocalRenderer = local;
+    _externalRemoteRenderer = remote;
+    _signalingService.setRenderers(local: local, remote: remote);
   }
 
-  /// Handle incoming call
-  void _handleIncomingCall(CallModel call) {
-    state = state.copyWith(hasIncomingCall: true, incomingCall: call);
-  }
-
-  /// Handle call accepted
-  void _handleCallAccepted(CallModel call) {
-    state = state.copyWith(
-      currentCall: call,
-      isInCall: true,
-      isConnecting: false,
-    );
-  }
-
-  /// Handle call declined
-  void _handleCallDeclined(CallModel call) {
-    state = state.copyWith(
-      currentCall: call,
-      isConnecting: false,
-      error: 'Call declined',
-    );
-    _cleanup();
-  }
-
-  /// Handle call ended
-  void _handleCallEnded() {
-    _cleanup();
-  }
-
-  /// Cleanup after call ends
-  void _cleanup() {
-    state = const CallState();
-    _localRenderer.srcObject = null;
-    _remoteRenderer.srcObject = null;
-  }
-
-  /// Make an outgoing call
   Future<bool> makeCall({
     required String calleeId,
     required String calleeName,
     String? calleeAvatar,
     required CallType callType,
   }) async {
-    if (_currentUserId == null) {
-      state = state.copyWith(error: 'User not authenticated');
+    final uid = supabase.auth.currentUser?.id;
+    if (uid == null) {
+      state = state.copyWith(error: 'Not authenticated');
       return false;
     }
 
     state = state.copyWith(isConnecting: true, error: null);
-
     try {
       final call = await _signalingService.createCall(
         calleeId: calleeId,
@@ -139,71 +106,42 @@ class CallProvider extends StateNotifier<CallState> {
         calleeAvatar: calleeAvatar,
         callType: callType,
       );
-
       if (call != null) {
         state = state.copyWith(
-          currentCall: call,
-          isInCall: true,
-          isConnecting: false,
-          isVideoEnabled: callType == CallType.video,
-        );
+          currentCall: call, isInCall: true, isConnecting: false,
+          isVideoEnabled: callType == CallType.video);
         return true;
-      } else {
-        state = state.copyWith(
-          isConnecting: false,
-          error: 'Failed to create call',
-        );
-        return false;
       }
+      state = state.copyWith(isConnecting: false, error: 'Failed to create call');
+      return false;
     } catch (e) {
-      state = state.copyWith(
-        isConnecting: false,
-        error: 'Error making call: $e',
-      );
+      state = state.copyWith(isConnecting: false, error: e.toString());
       return false;
     }
   }
 
-  /// Accept incoming call
   Future<bool> acceptCall() async {
     if (state.incomingCall == null) return false;
-
     state = state.copyWith(isConnecting: true, error: null);
-
     try {
-      final success = await _signalingService.acceptCall(state.incomingCall!);
-
-      if (success) {
+      final ok = await _signalingService.acceptCall(state.incomingCall!);
+      if (ok) {
         state = state.copyWith(
-          currentCall: state.incomingCall,
-          isInCall: true,
-          isConnecting: false,
-          hasIncomingCall: false,
-          incomingCall: null,
-          isVideoEnabled: state.incomingCall!.callType == CallType.video,
-        );
+          currentCall: state.incomingCall, isInCall: true,
+          isConnecting: false, hasIncomingCall: false, incomingCall: null,
+          isVideoEnabled: state.incomingCall!.callType == CallType.video);
         return true;
-      } else {
-        state = state.copyWith(
-          isConnecting: false,
-          error: 'Failed to accept call',
-          hasIncomingCall: false,
-          incomingCall: null,
-        );
-        return false;
       }
+      state = state.copyWith(isConnecting: false, error: 'Failed to accept',
+          hasIncomingCall: false, incomingCall: null);
+      return false;
     } catch (e) {
-      state = state.copyWith(
-        isConnecting: false,
-        error: 'Error accepting call: $e',
-        hasIncomingCall: false,
-        incomingCall: null,
-      );
+      state = state.copyWith(isConnecting: false, error: e.toString(),
+          hasIncomingCall: false, incomingCall: null);
       return false;
     }
   }
 
-  /// Decline incoming call
   Future<void> declineCall() async {
     if (state.incomingCall != null) {
       await _signalingService.declineCall(state.incomingCall!);
@@ -211,59 +149,48 @@ class CallProvider extends StateNotifier<CallState> {
     }
   }
 
-  /// End current call
   Future<void> endCall() async {
     await _signalingService.endCall();
     _cleanup();
   }
 
-  /// Toggle audio
-  void toggleAudio() {
-    final newState = !state.isAudioEnabled;
-    _signalingService.toggleAudio(newState);
-    state = state.copyWith(isAudioEnabled: newState);
+  /// toggleAudio(enabled) — passing explicit value so VideoCallScreen controls state
+  void toggleAudio(bool enabled) {
+    _signalingService.toggleAudio(enabled);
+    state = state.copyWith(isAudioEnabled: enabled);
   }
 
-  /// Toggle video
-  void toggleVideo() {
-    final newState = !state.isVideoEnabled;
-    _signalingService.toggleVideo(newState);
-    state = state.copyWith(isVideoEnabled: newState);
+  /// toggleVideo(enabled)
+  void toggleVideo(bool enabled) {
+    _signalingService.toggleVideo(enabled);
+    state = state.copyWith(isVideoEnabled: enabled);
   }
 
-  /// Switch camera
   Future<void> switchCamera() async {
     await _signalingService.switchCamera();
   }
 
-  /// Get local renderer
-  RTCVideoRenderer get localRenderer => _localRenderer;
+  void _cleanup() {
+    state = const CallState();
+    _externalLocalRenderer?.srcObject = null;
+    _externalRemoteRenderer?.srcObject = null;
+  }
 
-  /// Get remote renderer
-  RTCVideoRenderer get remoteRenderer => _remoteRenderer;
-
-  /// Get current user ID
-  String? get currentUserId => _currentUserId;
-
-  /// Get current user name
-  String? get currentUserName => _currentUserName;
+  RTCVideoRenderer? get localRenderer => _externalLocalRenderer;
+  RTCVideoRenderer? get remoteRenderer => _externalRemoteRenderer;
 
   @override
   void dispose() {
-    _localRenderer.dispose();
-    _remoteRenderer.dispose();
     _signalingService.dispose();
     super.dispose();
   }
 }
 
-/// Provider for SupabaseSignalingService
 final signalingServiceProvider = Provider<SupabaseSignalingService>((ref) {
   return SupabaseSignalingService();
 });
 
-/// Provider for CallProvider
 final callProvider = StateNotifierProvider<CallProvider, CallState>((ref) {
-  final signalingService = ref.watch(signalingServiceProvider);
-  return CallProvider(signalingService);
+  return CallProvider(ref.watch(signalingServiceProvider));
 });
+

@@ -42,9 +42,18 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         }
       } catch (e) {
         if (!mounted) return;
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(e.toString())));
+        final msg = e.toString();
+        String friendly;
+        if (msg.contains('Invalid login credentials') || msg.contains('invalid_credentials')) {
+          friendly = 'Incorrect email or password.';
+        } else if (msg.contains('Email not confirmed') || msg.contains('email_not_confirmed')) {
+          friendly = 'Please verify your email before logging in.';
+        } else if (msg.contains('network') || msg.contains('SocketException')) {
+          friendly = 'No internet connection.';
+        } else {
+          friendly = 'Login failed. Please try again.';
+        }
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(friendly)));
       } finally {
         if (mounted) {
           setState(() => _isLoading = false);
@@ -122,9 +131,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   Align(
                     alignment: Alignment.centerRight,
                     child: GestureDetector(
-                      onTap: () {
-                        /* Handle forgot password */
-                      },
+                      onTap: () => context.push('/forgot-password'),
                       child: Text(
                         'Forgot password?',
                         style: TextStyle(

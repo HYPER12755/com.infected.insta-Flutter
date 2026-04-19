@@ -1,10 +1,15 @@
 import 'dart:async';
+import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:flutter_webrtc/flutter_webrtc.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+
 import 'package:infected_insta/features/call/models/call_model.dart';
 import 'package:infected_insta/features/call/providers/call_provider.dart';
 
-/// Active video/audio call screen with controls
 class VideoCallScreen extends ConsumerStatefulWidget {
   const VideoCallScreen({super.key});
 
@@ -13,428 +18,344 @@ class VideoCallScreen extends ConsumerStatefulWidget {
 }
 
 class _VideoCallScreenState extends ConsumerState<VideoCallScreen> {
-  Timer? _callTimer;
-  int _callDuration = 0;
+  // Renderers
+  final RTCVideoRenderer _localRenderer = RTCVideoRenderer();
+  final RTCVideoRenderer _remoteRenderer = RTCVideoRenderer();
+
+  // Call state
+  bool _muted = false;
+  bool _videoOff = false;
+  bool _speakerOn = true;
+  bool _frontCamera = true;
   bool _showControls = true;
-  String _connectionStatus = 'Connecting...';
-  int _connectionQuality = 0; // 0: unknown, 1: poor, 2: fair, 3: good
+  bool _pipMode = false; // local video draggable PiP
+
+  Timer? _durationTimer;
+  Timer? _controlsTimer;
+  int _durationSeconds = 0;
+
+  // Local PiP position
+  Offset _pipOffset = const Offset(16, 100);
 
   @override
   void initState() {
     super.initState();
+    _initRenderers();
     _startTimer();
+    _autoHideControls();
+    // Force landscape not needed — keep portrait
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
   }
 
   @override
   void dispose() {
-    _callTimer?.cancel();
+    _localRenderer.dispose();
+    _remoteRenderer.dispose();
+    _durationTimer?.cancel();
+    _controlsTimer?.cancel();
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     super.dispose();
   }
 
+  Future<void> _initRenderers() async {
+    await _localRenderer.initialize();
+    await _remoteRenderer.initialize();
+
+    final provider = ref.read(callProvider.notifier);
+    provider.setRenderers(
+      local: _localRenderer,
+      remote: _remoteRenderer,
+    );
+  }
+
   void _startTimer() {
-    _callTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      setState(() {
-        _callDuration++;
-        // Update connection status display based on duration
-        if (_callDuration > 5) {
-          _connectionStatus = 'Connected';
-          _connectionQuality = 3;
-        } else if (_callDuration > 2) {
-          _connectionStatus = 'Connecting';
-          _connectionQuality = 2;
-        }
-      });
+    _durationTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() => _durationSeconds++);
     });
   }
 
-  String _formatDuration(int seconds) {
-    final minutes = seconds ~/ 60;
-    final secs = seconds % 60;
-    return '${minutes.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
-  }
-
-  void _toggleControls() {
-    setState(() {
-      _showControls = !_showControls;
+  void _autoHideControls() {
+    _controlsTimer?.cancel();
+    _controlsTimer = Timer(const Duration(seconds: 4), () {
+      if (mounted) setState(() => _showControls = false);
     });
   }
 
-  /// Get connection quality indicator color
-  Color _getQualityColor() {
-    switch (_connectionQuality) {
-      case 3:
-        return Colors.green;
-      case 2:
-        return Colors.orange;
-      case 1:
-        return Colors.red;
-      default:
-        return Colors.grey;
-    }
+  void _onTap() {
+    setState(() => _showControls = !_showControls);
+    if (_showControls) _autoHideControls();
   }
 
-  /// Get connection quality icon
-  IconData _getQualityIcon() {
-    switch (_connectionQuality) {
-      case 3:
-        return Icons.signal_cellular_4_bar;
-      case 2:
-        return Icons.signal_cellular_alt;
-      case 1:
-        return Icons.signal_cellular_alt_1_bar;
-      default:
-        return Icons.signal_cellular_alt_1_bar;
-    }
+  String _formatDuration(int s) {
+    final m = s ~/ 60;
+    final sec = s % 60;
+    return '${m.toString().padLeft(2, '0')}:${sec.toString().padLeft(2, '0')}';
+  }
+
+  void _toggleMute() {
+    setState(() => _muted = !_muted);
+    ref.read(callProvider.notifier).toggleAudio(!_muted);
+    HapticFeedback.selectionClick();
+  }
+
+  void _toggleVideo() {
+    setState(() => _videoOff = !_videoOff);
+    ref.read(callProvider.notifier).toggleVideo(!_videoOff);
+    HapticFeedback.selectionClick();
+  }
+
+  void _toggleSpeaker() {
+    setState(() => _speakerOn = !_speakerOn);
+    // flutter_webrtc handles speaker routing via MediaStream constraints
+    HapticFeedback.selectionClick();
+  }
+
+  Future<void> _flipCamera() async {
+    setState(() => _frontCamera = !_frontCamera);
+    ref.read(callProvider.notifier).switchCamera();
+    HapticFeedback.lightImpact();
+  }
+
+  void _endCall() {
+    HapticFeedback.mediumImpact();
+    ref.read(callProvider.notifier).endCall();
+    Navigator.pop(context);
   }
 
   @override
   Widget build(BuildContext context) {
     final callState = ref.watch(callProvider);
-    final callProviderNotifier = ref.read(callProvider.notifier);
-
-    // Check if call is still active
-    if (!callState.isInCall || callState.currentCall == null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          Navigator.of(context).pop();
-        }
-      });
-    }
-
-    final call = callState.currentCall!;
-    final isVideoCall = call.callType == CallType.video;
-    final isCaller = call.isCaller(callProviderNotifier.currentUserId ?? '');
-
-    // Determine the other party's name
-    final otherPartyName = isCaller ? call.calleeName : call.callerName;
+    final call = callState.currentCall;
+    final isVideoCall = call?.callType == CallType.video;
+    final size = MediaQuery.of(context).size;
 
     return Scaffold(
       backgroundColor: Colors.black,
       body: GestureDetector(
-        onTap: _toggleControls,
-        child: Stack(
-          children: [
-            // Remote video or placeholder
+        onTap: _onTap,
+        child: Stack(children: [
+          // ── Remote video (full screen) ───────────────────────────────────
+          if (isVideoCall && !_videoOff)
             Positioned.fill(
-              child: isVideoCall
-                  ? _VideoView(
-                      renderer: callProviderNotifier.remoteRenderer,
-                      placeholder: otherPartyName,
-                    )
-                  : _AudioCallPlaceholder(name: otherPartyName),
+              child: RTCVideoView(
+                _remoteRenderer,
+                objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+                mirror: false,
+              ),
+            )
+          else
+            _buildAudioBackground(call),
+
+          // ── Local PiP video (draggable) ─────────────────────────────────
+          if (isVideoCall)
+            Positioned(
+              left: _pipOffset.dx,
+              top: _pipOffset.dy,
+              child: GestureDetector(
+                onPanUpdate: (d) {
+                  setState(() {
+                    _pipOffset = Offset(
+                      (_pipOffset.dx + d.delta.dx)
+                          .clamp(0, size.width - 120),
+                      (_pipOffset.dy + d.delta.dy)
+                          .clamp(0, size.height - 180),
+                    );
+                  });
+                },
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: SizedBox(
+                    width: 110, height: 160,
+                    child: _videoOff
+                        ? Container(color: const Color(0xFF2A2A3E),
+                            child: const Center(
+                              child: FaIcon(FontAwesomeIcons.videoSlash,
+                                  color: Colors.white54, size: 24)))
+                        : RTCVideoView(
+                            _localRenderer,
+                            objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+                            mirror: _frontCamera,
+                          ),
+                  ),
+                ),
+              ),
             ),
 
-            // Local video (picture-in-picture)
-            if (isVideoCall && callState.isVideoEnabled)
-              Positioned(
-                top: 60,
-                right: 16,
-                width: 100,
-                height: 140,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.black,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.white, width: 2),
-                  ),
-                  clipBehavior: Clip.antiAlias,
-                  child: _VideoView(
-                    renderer: callProviderNotifier.localRenderer,
-                    placeholder: null,
-                  ),
-                ),
+          // ── Top bar (animated show/hide) ─────────────────────────────────
+          AnimatedPositioned(
+            duration: const Duration(milliseconds: 200),
+            top: _showControls ? 0 : -120,
+            left: 0, right: 0,
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                  colors: [Colors.black87, Colors.transparent]),
               ),
+              padding: const EdgeInsets.fromLTRB(20, 50, 20, 20),
+              child: Row(children: [
+                // Back
+                GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: const FaIcon(FontAwesomeIcons.chevronDown,
+                      color: Colors.white, size: 20)),
+                const SizedBox(width: 16),
+                Expanded(child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(call?.calleeName ?? call?.callerName ?? 'Call',
+                      style: const TextStyle(color: Colors.white,
+                          fontWeight: FontWeight.bold, fontSize: 18)),
+                  Row(children: [
+                    Container(width: 8, height: 8,
+                        decoration: const BoxDecoration(
+                            color: Colors.green, shape: BoxShape.circle)),
+                    const SizedBox(width: 6),
+                    Text(_formatDuration(_durationSeconds),
+                        style: const TextStyle(color: Colors.white70, fontSize: 13)),
+                  ]),
+                ])),
+                // Connection quality
+                _connectionQualityIcon(callState),
+              ]),
+            ),
+          ),
 
-            // Top bar with call info
-            if (_showControls)
-              Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                child: Container(
-                  padding: EdgeInsets.only(
-                    top: MediaQuery.of(context).padding.top + 16,
-                    left: 16,
-                    right: 16,
-                    bottom: 16,
-                  ),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [Colors.black.withAlpha(178), Colors.transparent],
-                    ),
-                  ),
-                  child: Row(
+          // ── Bottom controls (animated show/hide) ─────────────────────────
+          AnimatedPositioned(
+            duration: const Duration(milliseconds: 200),
+            bottom: _showControls ? 0 : -160,
+            left: 0, right: 0,
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.bottomCenter, end: Alignment.topCenter,
+                  colors: [Colors.black87, Colors.transparent]),
+              ),
+              padding: const EdgeInsets.fromLTRB(24, 24, 24, 48),
+              child: Column(children: [
+                // Top row: mute, video, speaker, flip
+                Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      // Call type icon
-                      Icon(
-                        isVideoCall ? Icons.videocam : Icons.call,
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 8),
-                      // Name and duration
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              otherPartyName,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            Text(
-                              _formatDuration(_callDuration),
-                              style: TextStyle(
-                                color: Colors.white.withAlpha(178),
-                                fontSize: 14,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      // Call status indicator with quality
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: _getQualityColor().withAlpha(77),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(_getQualityIcon(), color: _getQualityColor(), size: 14),
-                            const SizedBox(width: 4),
-                            Text(
-                              _connectionStatus,
-                              style: TextStyle(
-                                color: _getQualityColor(),
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+                  _ControlBtn(
+                    icon: _muted
+                        ? FontAwesomeIcons.microphoneSlash
+                        : FontAwesomeIcons.microphone,
+                    label: _muted ? 'Unmute' : 'Mute',
+                    active: _muted,
+                    onTap: _toggleMute,
                   ),
-                ),
-              ),
-
-            // Bottom controls
-            if (_showControls)
-              Positioned(
-                bottom: 0,
-                left: 0,
-                right: 0,
-                child: Container(
-                  padding: EdgeInsets.only(
-                    bottom: MediaQuery.of(context).padding.bottom + 24,
-                    top: 24,
-                  ),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.bottomCenter,
-                      end: Alignment.topCenter,
-                      colors: [Colors.black.withAlpha(178), Colors.transparent],
+                  if (isVideoCall)
+                    _ControlBtn(
+                      icon: _videoOff
+                          ? FontAwesomeIcons.videoSlash
+                          : FontAwesomeIcons.video,
+                      label: _videoOff ? 'Start Video' : 'Stop Video',
+                      active: _videoOff,
+                      onTap: _toggleVideo,
                     ),
+                  _ControlBtn(
+                    icon: _speakerOn
+                        ? FontAwesomeIcons.volumeHigh
+                        : FontAwesomeIcons.volumeXmark,
+                    label: _speakerOn ? 'Speaker' : 'Earpiece',
+                    active: false,
+                    onTap: _toggleSpeaker,
                   ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      // Mute button
-                      _ControlButton(
-                        icon: callState.isAudioEnabled
-                            ? Icons.mic
-                            : Icons.mic_off,
-                        label: callState.isAudioEnabled ? 'Mute' : 'Unmute',
-                        isActive: !callState.isAudioEnabled,
-                        onPressed: () {
-                          callProviderNotifier.toggleAudio();
-                        },
-                      ),
-
-                      // End call button
-                      _ControlButton(
-                        icon: Icons.call_end,
-                        label: 'End',
-                        isActive: true,
-                        isEndCall: true,
-                        onPressed: () {
-                          callProviderNotifier.endCall();
-                          Navigator.of(context).pop();
-                        },
-                      ),
-
-                      // Video toggle (only for video calls)
-                      if (isVideoCall)
-                        _ControlButton(
-                          icon: callState.isVideoEnabled
-                              ? Icons.videocam
-                              : Icons.videocam_off,
-                          label: callState.isVideoEnabled
-                              ? 'Stop Video'
-                              : 'Start Video',
-                          isActive: !callState.isVideoEnabled,
-                          onPressed: () {
-                            callProviderNotifier.toggleVideo();
-                          },
-                        )
-                      else
-                        const SizedBox(width: 64),
-
-                      // Switch camera (only for video calls)
-                      if (isVideoCall)
-                        _ControlButton(
-                          icon: Icons.cameraswitch,
-                          label: 'Flip',
-                          onPressed: () {
-                            callProviderNotifier.switchCamera();
-                          },
-                        )
-                      else
-                        const SizedBox(width: 64),
-                    ],
+                  if (isVideoCall)
+                    _ControlBtn(
+                      icon: FontAwesomeIcons.rotateRight,
+                      label: 'Flip',
+                      active: false,
+                      onTap: _flipCamera,
+                    ),
+                ]),
+                const SizedBox(height: 24),
+                // End call button
+                GestureDetector(
+                  onTap: _endCall,
+                  child: Container(
+                    width: 72, height: 72,
+                    decoration: const BoxDecoration(
+                        color: Colors.red, shape: BoxShape.circle),
+                    child: const Center(
+                      child: FaIcon(FontAwesomeIcons.phoneXmark,
+                          size: 28, color: Colors.white)),
                   ),
                 ),
-              ),
-          ],
-        ),
+              ]),
+            ),
+          ),
+        ]),
       ),
     );
   }
-}
 
-/// Video view widget with renderer and placeholder
-class _VideoView extends StatelessWidget {
-  final dynamic renderer;
-  final String? placeholder;
-
-  const _VideoView({required this.renderer, this.placeholder});
-
-  @override
-  Widget build(BuildContext context) {
-    if (renderer != null && renderer.srcObject != null) {
-      // Use RTCVideoRenderer view
-      return Texture(textureId: renderer.textureId);
-    }
-
-    // Placeholder when no video
+  Widget _buildAudioBackground(CallModel? call) {
+    final name = call?.calleeName ?? call?.callerName ?? '';
+    final avatar = call?.calleeAvatar ?? call?.callerAvatar ?? '';
     return Container(
-      color: Colors.grey[900],
-      child: Center(
-        child: placeholder != null
-            ? Text(
-                placeholder![0].toUpperCase(),
-                style: const TextStyle(fontSize: 64, color: Colors.white54),
-              )
-            : const Icon(Icons.videocam_off, size: 64, color: Colors.white54),
-      ),
-    );
-  }
-}
-
-/// Audio call placeholder widget
-class _AudioCallPlaceholder extends StatelessWidget {
-  final String name;
-
-  const _AudioCallPlaceholder({required this.name});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: Colors.grey[900],
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter, end: Alignment.bottomCenter,
+          colors: [Color(0xFF1A1A2E), Color(0xFF0D0D1A)])),
+      child: Center(child: Column(mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            CircleAvatar(
-              radius: 60,
-              backgroundColor: Theme.of(context).primaryColor.withAlpha(77),
-              child: Text(
-                name.isNotEmpty ? name[0].toUpperCase() : '?',
-                style: const TextStyle(fontSize: 48, color: Colors.white),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              name,
-              style: const TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Audio Call',
-              style: TextStyle(fontSize: 16, color: Colors.white54),
-            ),
-          ],
+        CircleAvatar(
+          radius: 72,
+          backgroundColor: const Color(0xFF2A2A3E),
+          backgroundImage: avatar.isNotEmpty
+              ? CachedNetworkImageProvider(avatar) as ImageProvider : null,
+          child: avatar.isEmpty
+              ? Text(name.isNotEmpty ? name[0].toUpperCase() : '?',
+                  style: const TextStyle(fontSize: 52, color: Colors.white,
+                      fontWeight: FontWeight.bold)) : null,
         ),
-      ),
+        const SizedBox(height: 20),
+        Text(name, style: const TextStyle(color: Colors.white,
+            fontSize: 24, fontWeight: FontWeight.bold)),
+      ])),
     );
+  }
+
+  Widget _connectionQualityIcon(CallState state) {
+    return const FaIcon(FontAwesomeIcons.signal, color: Colors.green, size: 16);
   }
 }
 
-/// Control button widget
-class _ControlButton extends StatelessWidget {
-  final IconData icon;
+// ─── Control button ───────────────────────────────────────────────────────────
+class _ControlBtn extends StatelessWidget {
+  final FaIconData icon;
   final String label;
-  final VoidCallback onPressed;
-  final bool isActive;
-  final bool isEndCall;
+  final bool active;
+  final VoidCallback onTap;
 
-  const _ControlButton({
+  const _ControlBtn({
     required this.icon,
     required this.label,
-    required this.onPressed,
-    this.isActive = false,
-    this.isEndCall = false,
+    required this.active,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    Color backgroundColor;
-    Color iconColor;
-
-    if (isEndCall) {
-      backgroundColor = Colors.red;
-      iconColor = Colors.white;
-    } else if (isActive) {
-      backgroundColor = Colors.white.withAlpha(51);
-      iconColor = Colors.white;
-    } else {
-      backgroundColor = Colors.white.withAlpha(26);
-      iconColor = Colors.white;
-    }
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(children: [
         Container(
-          width: 56,
-          height: 56,
+          width: 56, height: 56,
           decoration: BoxDecoration(
-            color: backgroundColor,
+            color: active
+                ? Colors.white.withValues(alpha: 0.9)
+                : Colors.white.withValues(alpha: 0.15),
             shape: BoxShape.circle,
           ),
-          child: IconButton(
-            icon: Icon(icon, color: iconColor, size: 28),
-            onPressed: onPressed,
-          ),
+          child: Center(
+            child: FaIcon(icon, size: 22,
+                color: active ? Colors.black : Colors.white)),
         ),
-        const SizedBox(height: 8),
-        Text(
-          label,
-          style: TextStyle(color: Colors.white.withAlpha(178), fontSize: 12),
-        ),
-      ],
+        const SizedBox(height: 6),
+        Text(label, style: const TextStyle(color: Colors.white60, fontSize: 11)),
+      ]),
     );
   }
 }

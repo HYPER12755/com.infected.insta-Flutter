@@ -1,10 +1,17 @@
+import 'dart:async';
+import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter_webrtc/flutter_webrtc.dart';
+
 import 'package:infected_insta/features/call/models/call_model.dart';
 import 'package:infected_insta/features/call/providers/call_provider.dart';
 import 'package:infected_insta/features/call/screens/video_call_screen.dart';
 
-/// Screen for incoming and outgoing call UI
+// ─── Entry-point call screen ──────────────────────────────────────────────────
 class CallScreen extends ConsumerWidget {
   final String? calleeId;
   final String? calleeName;
@@ -23,203 +30,28 @@ class CallScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final callState = ref.watch(callProvider);
 
-    // Show incoming call dialog if there's an incoming call
     if (callState.hasIncomingCall && callState.incomingCall != null) {
-      return _IncomingCallScreen(incomingCall: callState.incomingCall!);
+      return _IncomingCallScreen(call: callState.incomingCall!);
     }
 
-    // Show outgoing call screen if we have callee info
     if (calleeId != null && calleeName != null) {
       return _OutgoingCallScreen(
         calleeId: calleeId!,
         calleeName: calleeName!,
         calleeAvatar: calleeAvatar,
-        callType: callType ?? CallType.video,
+        callType: callType ?? CallType.audio,
       );
     }
 
-    // Default - show call dial pad or user selection
-    return const _CallInitScreen();
-  }
-}
-
-/// Screen for initiating a call (select user and call type)
-class _CallInitScreen extends ConsumerStatefulWidget {
-  const _CallInitScreen();
-
-  @override
-  ConsumerState<_CallInitScreen> createState() => _CallInitScreenState();
-}
-
-class _CallInitScreenState extends ConsumerState<_CallInitScreen> {
-  CallType _selectedCallType = CallType.video;
-  String? _selectedUserId;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('New Call')),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            // Call type selection
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _CallTypeButton(
-                  icon: Icons.videocam,
-                  label: 'Video',
-                  isSelected: _selectedCallType == CallType.video,
-                  onTap: () =>
-                      setState(() => _selectedCallType = CallType.video),
-                ),
-                const SizedBox(width: 16),
-                _CallTypeButton(
-                  icon: Icons.call,
-                  label: 'Audio',
-                  isSelected: _selectedCallType == CallType.audio,
-                  onTap: () =>
-                      setState(() => _selectedCallType = CallType.audio),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-            // User selection placeholder
-            Expanded(
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.person_add, size: 64, color: Colors.grey),
-                    const SizedBox(height: 16),
-                    const Text(
-                      'Select a user to call',
-                      style: TextStyle(fontSize: 18, color: Colors.grey),
-                    ),
-                    const SizedBox(height: 24),
-                    ElevatedButton.icon(
-                      onPressed: _selectedUserId != null
-                          ? () => _startCall(context)
-                          : null,
-                      icon: Icon(
-                        _selectedCallType == CallType.video
-                            ? Icons.videocam
-                            : Icons.call,
-                      ),
-                      label: Text(
-                        _selectedCallType == CallType.video
-                            ? 'Start Video Call'
-                            : 'Start Audio Call',
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _startCall(BuildContext context) {
-    // Show user selection dialog - this would connect to a user list or contacts
-    // For production, this should show a UsersListScreen or similar
-    // Simplified: navigate to users list for selection
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: const Color(0xFF1A1A1A),
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Start a call with:',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 16),
-            ListTile(
-              leading: const CircleAvatar(
-                child: Icon(Icons.person),
-              ),
-              title: const Text(
-                'Select from contacts',
-                style: TextStyle(color: Colors.white),
-              ),
-              onTap: () {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Navigate to contacts for call'),
-                  ),
-                );
-              },
-            ),
-          ],
-        ),
-      ),
+    return const Scaffold(
+      backgroundColor: Colors.black,
+      body: Center(child: Text('No call in progress',
+          style: TextStyle(color: Colors.white54))),
     );
   }
 }
 
-/// Call type selection button widget
-class _CallTypeButton extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  const _CallTypeButton({
-    required this.icon,
-    required this.label,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-        decoration: BoxDecoration(
-          color: isSelected ? theme.primaryColor : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: isSelected ? theme.primaryColor : Colors.grey,
-            width: 2,
-          ),
-        ),
-        child: Column(
-          children: [
-            Icon(
-              icon,
-              size: 32,
-              color: isSelected ? Colors.white : Colors.grey,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                color: isSelected ? Colors.white : Colors.grey,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Screen for outgoing call (dialing)
+// ─── Outgoing call (dialing) ──────────────────────────────────────────────────
 class _OutgoingCallScreen extends ConsumerStatefulWidget {
   final String calleeId;
   final String calleeName;
@@ -234,200 +66,411 @@ class _OutgoingCallScreen extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<_OutgoingCallScreen> createState() =>
-      _OutgoingCallScreenState();
+  ConsumerState<_OutgoingCallScreen> createState() => _OutgoingCallScreenState();
 }
 
-class _OutgoingCallScreenState extends ConsumerState<_OutgoingCallScreen> {
+class _OutgoingCallScreenState extends ConsumerState<_OutgoingCallScreen>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _pulseCtrl;
+  late Animation<double> _pulseAnim;
+  Timer? _callTimeout;
+  bool _calling = false;
+  bool _muted = false;
+  bool _speakerOn = true;
+
   @override
   void initState() {
     super.initState();
-    // Start the call when screen loads
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _startCall();
-    });
+    _pulseCtrl = AnimationController(
+      vsync: this, duration: const Duration(milliseconds: 1200))
+      ..repeat(reverse: true);
+    _pulseAnim = Tween<double>(begin: 1.0, end: 1.18)
+        .animate(CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut));
+
+    WidgetsBinding.instance.addPostFrameCallback((_) => _startCall());
+  }
+
+  @override
+  void dispose() {
+    _pulseCtrl.dispose();
+    _callTimeout?.cancel();
+    super.dispose();
   }
 
   Future<void> _startCall() async {
-    final success = await ref
-        .read(callProvider.notifier)
-        .makeCall(
-          calleeId: widget.calleeId,
-          calleeName: widget.calleeName,
-          calleeAvatar: widget.calleeAvatar,
-          callType: widget.callType,
-        );
+    if (_calling) return;
+    _calling = true;
+    HapticFeedback.mediumImpact();
+
+    final success = await ref.read(callProvider.notifier).makeCall(
+      calleeId: widget.calleeId,
+      calleeName: widget.calleeName,
+      calleeAvatar: widget.calleeAvatar,
+      callType: widget.callType,
+    );
+
+    // Auto-timeout after 45s if no answer
+    _callTimeout = Timer(const Duration(seconds: 45), () {
+      if (mounted) {
+        ref.read(callProvider.notifier).endCall();
+        Navigator.pop(context);
+      }
+    });
 
     if (success && mounted) {
-      // Navigate to video call screen
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (context) => const VideoCallScreen()),
-      );
+      Navigator.pushReplacement(context,
+          MaterialPageRoute(builder: (_) => const VideoCallScreen()));
+    }
+  }
+
+  void _cancel() {
+    _callTimeout?.cancel();
+    ref.read(callProvider.notifier).endCall();
+    Navigator.pop(context);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final avatar = widget.calleeAvatar ?? '';
+    final isVideo = widget.callType == CallType.video;
+
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Stack(children: [
+        // ── Blurred background ──
+        if (avatar.isNotEmpty)
+          Positioned.fill(
+            child: ImageFiltered(
+              imageFilter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+              child: CachedNetworkImage(imageUrl: avatar, fit: BoxFit.cover,
+                  color: Colors.black54, colorBlendMode: BlendMode.darken),
+            ),
+          )
+        else
+          Container(decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter, end: Alignment.bottomCenter,
+              colors: [Color(0xFF1A1A2E), Color(0xFF0D0D1A)]),
+          )),
+
+        SafeArea(child: Column(children: [
+          const SizedBox(height: 60),
+
+          // Call type label
+          Text(isVideo ? 'Video Call' : 'Audio Call',
+              style: const TextStyle(color: Colors.white54, fontSize: 15,
+                  letterSpacing: 0.5)),
+          const SizedBox(height: 40),
+
+          // ── Pulsing avatar ──
+          ScaleTransition(
+            scale: _pulseAnim,
+            child: Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                boxShadow: [BoxShadow(
+                  color: const Color(0xFFC039FF).withValues(alpha: 0.5),
+                  blurRadius: 40, spreadRadius: 10)],
+              ),
+              child: CircleAvatar(
+                radius: 72,
+                backgroundColor: const Color(0xFF2A2A3E),
+                backgroundImage: avatar.isNotEmpty
+                    ? CachedNetworkImageProvider(avatar) as ImageProvider : null,
+                child: avatar.isEmpty
+                    ? Text(widget.calleeName[0].toUpperCase(),
+                        style: const TextStyle(fontSize: 52, color: Colors.white,
+                            fontWeight: FontWeight.bold)) : null,
+              ),
+            ),
+          ),
+          const SizedBox(height: 28),
+
+          Text(widget.calleeName,
+              style: const TextStyle(color: Colors.white, fontSize: 28,
+                  fontWeight: FontWeight.bold)),
+          const SizedBox(height: 10),
+
+          // Animated "Calling..." dots
+          _CallingIndicator(),
+
+          const Spacer(),
+
+          // ── Controls ──
+          Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+            _CallBtn(
+              icon: _muted ? FontAwesomeIcons.microphoneSlash : FontAwesomeIcons.microphone,
+              label: _muted ? 'Unmute' : 'Mute',
+              bg: _muted ? Colors.white.withValues(alpha: 0.9) : Colors.white.withValues(alpha: 0.15),
+              iconColor: _muted ? Colors.black : Colors.white,
+              onTap: () => setState(() => _muted = !_muted),
+            ),
+            const SizedBox(width: 40),
+            _CallBtn(
+              icon: FontAwesomeIcons.phoneXmark,
+              label: 'End',
+              bg: Colors.red,
+              iconColor: Colors.white,
+              size: 72,
+              onTap: _cancel,
+            ),
+            const SizedBox(width: 40),
+            _CallBtn(
+              icon: _speakerOn ? FontAwesomeIcons.volumeHigh : FontAwesomeIcons.volumeXmark,
+              label: _speakerOn ? 'Speaker' : 'Earpiece',
+              bg: Colors.white.withValues(alpha: 0.15),
+              onTap: () => setState(() => _speakerOn = !_speakerOn),
+            ),
+          ]),
+          const SizedBox(height: 60),
+        ])),
+      ]),
+    );
+  }
+}
+
+// ─── Incoming call screen ─────────────────────────────────────────────────────
+class _IncomingCallScreen extends ConsumerStatefulWidget {
+  final CallModel call;
+  const _IncomingCallScreen({required this.call});
+
+  @override
+  ConsumerState<_IncomingCallScreen> createState() => _IncomingCallScreenState();
+}
+
+class _IncomingCallScreenState extends ConsumerState<_IncomingCallScreen>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ringCtrl;
+  late Animation<double> _ringAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _ringCtrl = AnimationController(
+      vsync: this, duration: const Duration(milliseconds: 1000))
+      ..repeat(reverse: true);
+    _ringAnim = Tween<double>(begin: 0.9, end: 1.15)
+        .animate(CurvedAnimation(parent: _ringCtrl, curve: Curves.easeInOut));
+
+    // Haptic pulse for incoming call
+    _pulseHaptic();
+  }
+
+  @override
+  void dispose() {
+    _ringCtrl.dispose();
+    super.dispose();
+  }
+
+  void _pulseHaptic() async {
+    for (int i = 0; i < 20; i++) {
+      if (!mounted) break;
+      HapticFeedback.mediumImpact();
+      await Future.delayed(const Duration(milliseconds: 800));
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final callState = ref.watch(callProvider);
-    final theme = Theme.of(context);
+    final call = widget.call;
+    final avatar = call.callerAvatar ?? '';
+    final isVideo = call.callType == CallType.video;
 
     return Scaffold(
       backgroundColor: Colors.black,
-      body: SafeArea(
-        child: Column(
-          children: [
-            const Spacer(),
-            // Avatar
-            CircleAvatar(
-              radius: 60,
-              backgroundColor: theme.primaryColor.withAlpha(77),
-              child: Text(
-                widget.calleeName.isNotEmpty
-                    ? widget.calleeName[0].toUpperCase()
-                    : '?',
-                style: const TextStyle(fontSize: 48, color: Colors.white),
+      body: Stack(children: [
+        // Blurred bg
+        if (avatar.isNotEmpty)
+          Positioned.fill(
+            child: ImageFiltered(
+              imageFilter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+              child: CachedNetworkImage(imageUrl: avatar, fit: BoxFit.cover,
+                  color: Colors.black60, colorBlendMode: BlendMode.darken),
+            ),
+          )
+        else
+          Container(decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter, end: Alignment.bottomCenter,
+              colors: [Color(0xFF0F3460), Color(0xFF0D0D1A)]))),
+
+        SafeArea(child: Column(children: [
+          const SizedBox(height: 40),
+          Text(isVideo ? 'Incoming Video Call' : 'Incoming Audio Call',
+              style: const TextStyle(color: Colors.white54, fontSize: 15,
+                  letterSpacing: 0.5)),
+          const SizedBox(height: 8),
+          Text('from', style: TextStyle(color: Colors.white.withValues(alpha: 0.35))),
+          const SizedBox(height: 40),
+
+          // ── Ringing avatar ──
+          ScaleTransition(
+            scale: _ringAnim,
+            child: Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.green.withValues(alpha: 0.5),
+                    blurRadius: 40, spreadRadius: 12),
+                ],
+              ),
+              child: CircleAvatar(
+                radius: 72,
+                backgroundColor: const Color(0xFF2A2A3E),
+                backgroundImage: avatar.isNotEmpty
+                    ? CachedNetworkImageProvider(avatar) as ImageProvider : null,
+                child: avatar.isEmpty
+                    ? Text(call.callerName.isNotEmpty
+                          ? call.callerName[0].toUpperCase() : '?',
+                        style: const TextStyle(fontSize: 52, color: Colors.white,
+                            fontWeight: FontWeight.bold)) : null,
               ),
             ),
-            const SizedBox(height: 24),
-            // Name
-            Text(
-              widget.calleeName,
-              style: const TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
+          ),
+          const SizedBox(height: 28),
+
+          Text(call.callerName,
+              style: const TextStyle(color: Colors.white, fontSize: 30,
+                  fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(20),
             ),
-            const SizedBox(height: 8),
-            // Status
-            Text(
-              callState.isConnecting
-                  ? 'Calling...'
-                  : callState.error ?? 'Unknown error',
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.white.withAlpha(178),
-              ),
-            ),
-            const Spacer(),
-            // Call type icon
-            Icon(
-              widget.callType == CallType.video ? Icons.videocam : Icons.call,
-              size: 32,
-              color: Colors.white.withAlpha(178),
-            ),
-            const SizedBox(height: 16),
-            // Cancel button
-            Padding(
-              padding: const EdgeInsets.only(bottom: 48),
-              child: FloatingActionButton(
-                onPressed: () {
-                  ref.read(callProvider.notifier).endCall();
-                  Navigator.of(context).pop();
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              FaIcon(isVideo ? FontAwesomeIcons.video : FontAwesomeIcons.phone,
+                  size: 14, color: Colors.white70),
+              const SizedBox(width: 6),
+              Text(isVideo ? 'Video Call' : 'Audio Call',
+                  style: const TextStyle(color: Colors.white70, fontSize: 13)),
+            ]),
+          ),
+
+          const Spacer(),
+
+          // ── Swipe to answer hint ──
+          Text('Swipe to answer',
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.35), fontSize: 12)),
+          const SizedBox(height: 24),
+
+          // ── Accept / Decline ──
+          Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
+            // Decline
+            Column(children: [
+              GestureDetector(
+                onTap: () {
+                  ref.read(callProvider.notifier).declineCall();
+                  Navigator.pop(context);
                 },
-                backgroundColor: Colors.red,
-                child: const Icon(Icons.call_end, color: Colors.white),
+                child: Container(
+                  width: 72, height: 72,
+                  decoration: const BoxDecoration(
+                      color: Colors.red, shape: BoxShape.circle),
+                  child: const Center(
+                    child: FaIcon(FontAwesomeIcons.phoneXmark,
+                        size: 28, color: Colors.white)),
+                ),
               ),
-            ),
-          ],
-        ),
-      ),
+              const SizedBox(height: 10),
+              const Text('Decline', style: TextStyle(color: Colors.white70, fontSize: 13)),
+            ]),
+
+            // Accept
+            Column(children: [
+              GestureDetector(
+                onTap: () async {
+                  final ok = await ref.read(callProvider.notifier).acceptCall();
+                  if (ok && context.mounted) {
+                    Navigator.pushReplacement(context,
+                        MaterialPageRoute(builder: (_) => const VideoCallScreen()));
+                  }
+                },
+                child: Container(
+                  width: 72, height: 72,
+                  decoration: const BoxDecoration(
+                      color: Colors.green, shape: BoxShape.circle),
+                  child: Center(
+                    child: FaIcon(
+                      isVideo ? FontAwesomeIcons.video : FontAwesomeIcons.phone,
+                      size: 28, color: Colors.white),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(isVideo ? 'Accept Video' : 'Accept',
+                  style: const TextStyle(color: Colors.white70, fontSize: 13)),
+            ]),
+          ]),
+          const SizedBox(height: 60),
+        ])),
+      ]),
     );
   }
 }
 
-/// Screen for incoming call
-class _IncomingCallScreen extends ConsumerWidget {
-  final CallModel incomingCall;
+// ─── Shared widgets ───────────────────────────────────────────────────────────
+class _CallBtn extends StatelessWidget {
+  final FaIconData icon;
+  final String label;
+  final Color bg;
+  final Color iconColor;
+  final double size;
+  final VoidCallback onTap;
 
-  const _IncomingCallScreen({required this.incomingCall});
+  const _CallBtn({
+    required this.icon,
+    required this.label,
+    required this.bg,
+    required this.onTap,
+    this.iconColor = Colors.white,
+    this.size = 60,
+  });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-    final isVideoCall = incomingCall.callType == CallType.video;
-
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: SafeArea(
-        child: Column(
-          children: [
-            const Spacer(),
-            // Avatar
-            CircleAvatar(
-              radius: 60,
-              backgroundColor: theme.primaryColor.withAlpha(77),
-              child: Text(
-                incomingCall.callerName.isNotEmpty
-                    ? incomingCall.callerName[0].toUpperCase()
-                    : '?',
-                style: const TextStyle(fontSize: 48, color: Colors.white),
-              ),
-            ),
-            const SizedBox(height: 24),
-            // Name
-            Text(
-              incomingCall.callerName,
-              style: const TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-            const SizedBox(height: 8),
-            // Call type
-            Text(
-              isVideoCall ? 'Incoming video call' : 'Incoming audio call',
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.white.withAlpha(178),
-              ),
-            ),
-            const Spacer(),
-            // Call type icon
-            Icon(
-              isVideoCall ? Icons.videocam : Icons.call,
-              size: 32,
-              color: Colors.white.withAlpha(178),
-            ),
-            const SizedBox(height: 32),
-            // Action buttons
-            Padding(
-              padding: const EdgeInsets.only(bottom: 48),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  // Decline button
-                  FloatingActionButton(
-                    onPressed: () {
-                      ref.read(callProvider.notifier).declineCall();
-                    },
-                    backgroundColor: Colors.red,
-                    child: const Icon(Icons.call_end, color: Colors.white),
-                  ),
-                  // Accept button
-                  FloatingActionButton(
-                    onPressed: () async {
-                      final success = await ref
-                          .read(callProvider.notifier)
-                          .acceptCall();
-                      if (success && context.mounted) {
-                        Navigator.of(context).pushReplacement(
-                          MaterialPageRoute(
-                            builder: (context) => const VideoCallScreen(),
-                          ),
-                        );
-                      }
-                    },
-                    backgroundColor: Colors.green,
-                    child: const Icon(Icons.call, color: Colors.white),
-                  ),
-                ],
-              ),
-            ),
-          ],
+  Widget build(BuildContext context) {
+    return Column(children: [
+      GestureDetector(
+        onTap: onTap,
+        child: Container(
+          width: size, height: size,
+          decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
+          child: Center(
+            child: FaIcon(icon, size: size * 0.38, color: iconColor)),
         ),
       ),
-    );
+      const SizedBox(height: 8),
+      Text(label, style: const TextStyle(color: Colors.white60, fontSize: 12)),
+    ]);
+  }
+}
+
+class _CallingIndicator extends StatefulWidget {
+  @override
+  State<_CallingIndicator> createState() => _CallingIndicatorState();
+}
+
+class _CallingIndicatorState extends State<_CallingIndicator> {
+  int _dots = 1;
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(milliseconds: 500), (_) {
+      if (mounted) setState(() => _dots = (_dots % 3) + 1);
+    });
+  }
+
+  @override
+  void dispose() { _timer?.cancel(); super.dispose(); }
+
+  @override
+  Widget build(BuildContext context) {
+    return Text('Calling${'.' * _dots}',
+        style: const TextStyle(color: Colors.white54, fontSize: 16,
+            letterSpacing: 1));
   }
 }

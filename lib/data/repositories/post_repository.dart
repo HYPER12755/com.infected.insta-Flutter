@@ -1,22 +1,48 @@
 import '../../supabase/supabase_client.dart';
 import '../models/result.dart';
 import 'base_repository.dart';
-import '../realtime/realtime_feed_service.dart';
 
 /// Post repository with real-time support
 class PostRepository extends BaseRepository {
-  // Real-time service for live feed updates
-  final RealtimeFeedService _realtimeService = RealtimeFeedService();
-  /// Get all posts
-  /// Returns a Result with list of posts or an error
-  Future<Result<List<Map<String, dynamic>>>> getPosts() async {
+  /// Get all posts joined with user profile data
+  Future<Result<List<Map<String, dynamic>>>> getPosts({int limit = 30}) async {
     try {
       final response = await supabase
           .from('posts')
-          .select()
-          .order('created_at', ascending: false);
+          .select('''
+            *,
+            profiles!posts_user_id_fkey(
+              id, username, full_name, avatar_url
+            ),
+            post_likes(count),
+            comments(count)
+          ''')
+          .order('created_at', ascending: false)
+          .limit(limit);
 
-      return Success(response);
+      // Flatten profile data into post map for easy access
+      final posts = (response as List).map<Map<String, dynamic>>((raw) {
+        final profile = raw['profiles'] as Map<String, dynamic>? ?? {};
+        final likesCount = (raw['post_likes'] as List?)?.isNotEmpty == true
+            ? ((raw['post_likes'] as List)[0]['count'] as int?) ?? 0
+            : 0;
+        final commentsCount = (raw['comments'] as List?)?.isNotEmpty == true
+            ? ((raw['comments'] as List)[0]['count'] as int?) ?? 0
+            : 0;
+        return {
+          ...raw,
+          'username': profile['username'] ?? 'unknown',
+          'userFullName': profile['full_name'] ?? profile['username'] ?? 'User',
+          'userAvatar': profile['avatar_url'] ?? '',
+          'likes': likesCount,
+          'commentsCount': commentsCount,
+          'imageUrl': raw['image_url'] ?? raw['imageUrl'] ?? '',
+          'location': raw['location'] ?? '',
+          'caption': raw['caption'] ?? '',
+        };
+      }).toList();
+
+      return Success(posts);
     } catch (e) {
       return Failure(
         DatabaseException(
@@ -26,49 +52,17 @@ class PostRepository extends BaseRepository {
       );
     }
   }
-
-  /// Get real-time feed stream
-  Stream<List<Map<String, dynamic>>> getFeedStream({int limit = 20}) {
-    return _realtimeService.getFeedStream(limit: limit);
-  }
-
-  /// Watch for new posts in real-time
-  Stream<Map<String, dynamic>> watchNewPosts() {
-    return _realtimeService.watchNewPosts();
-  }
-
-  /// Watch post likes count in real-time
-  Stream<int> watchPostLikesCount(String postId) {
-    return _realtimeService.watchPostLikesCount(postId);
-  }
-
-  /// Watch post comments count in real-time
-  Stream<int> watchPostCommentsCount(String postId) {
-    return _realtimeService.watchPostCommentsCount(postId);
-  }
-
-  /// Watch for new likes on a post
-  Stream<Map<String, dynamic>> watchNewLikes(String postId) {
-    return _realtimeService.watchNewLikes(postId);
-  }
-
-  /// Watch for new comments on a post
-  Stream<Map<String, dynamic>> watchNewComments(String postId) {
-    return _realtimeService.watchNewComments(postId);
-  }
-
-  /// Get posts from followed users in real-time
-  Stream<List<Map<String, dynamic>>> getPostsFromUsers(List<String> userIds) {
-    return _realtimeService.getPostsFromUsers(userIds);
-  }
-
-  /// Get a single post by ID
   /// Returns a Result with the post data or error/not found
   Future<Result<Map<String, dynamic>>> getPost(String postId) async {
     try {
       final response = await supabase
           .from('posts')
-          .select()
+          .select('''
+            *,
+            profiles!posts_user_id_fkey(id, username, full_name, avatar_url),
+            post_likes(count),
+            comments(count)
+          ''')
           .eq('id', postId)
           .maybeSingle();
 
@@ -76,7 +70,23 @@ class PostRepository extends BaseRepository {
         return const Failure(NotFoundException(message: 'Post not found'));
       }
 
-      return Success(response);
+      final profile = response['profiles'] as Map<String, dynamic>? ?? {};
+      final likesCount = (response['post_likes'] as List?)?.isNotEmpty == true
+          ? ((response['post_likes'] as List)[0]['count'] as int?) ?? 0 : 0;
+      final commentsCount = (response['comments'] as List?)?.isNotEmpty == true
+          ? ((response['comments'] as List)[0]['count'] as int?) ?? 0 : 0;
+
+      final enriched = {
+        ...response,
+        'username': profile['username'] ?? 'unknown',
+        'userAvatar': profile['avatar_url'] ?? '',
+        'userFullName': profile['full_name'] ?? '',
+        'imageUrl': response['image_url'] ?? '',
+        'likes': likesCount,
+        'commentsCount': commentsCount,
+      };
+
+      return Success(enriched);
     } catch (e) {
       return Failure(
         DatabaseException(
@@ -160,11 +170,25 @@ class PostRepository extends BaseRepository {
     try {
       final response = await supabase
           .from('posts')
-          .select()
+          .select('*, post_likes(count), comments(count)')
           .eq('user_id', userId)
+          .eq('is_archived', false)
           .order('created_at', ascending: false);
 
-      return Success(response);
+      final posts = (response as List).map<Map<String, dynamic>>((raw) {
+        final likesCount = (raw['post_likes'] as List?)?.isNotEmpty == true
+            ? ((raw['post_likes'] as List)[0]['count'] as int?) ?? 0 : 0;
+        final commentsCount = (raw['comments'] as List?)?.isNotEmpty == true
+            ? ((raw['comments'] as List)[0]['count'] as int?) ?? 0 : 0;
+        return {
+          ...raw,
+          'imageUrl': raw['image_url'] ?? '',
+          'likes': likesCount,
+          'commentsCount': commentsCount,
+        };
+      }).toList();
+
+      return Success(posts);
     } catch (e) {
       return Failure(
         DatabaseException(
@@ -180,34 +204,141 @@ class PostRepository extends BaseRepository {
   Future<Result<void>> deletePost(String postId) async {
     try {
       await supabase.from('posts').delete().eq('id', postId);
-
       return const Success(null);
     } catch (e) {
-      return Failure(
-        DatabaseException(
-          message: 'Failed to delete post: ${e.toString()}',
-          originalError: e,
-        ),
-      );
+      return Failure(DatabaseException(
+        message: 'Failed to delete post: ${e.toString()}',
+        originalError: e,
+      ));
     }
   }
 
-  /// Get posts feed with pagination
-  /// [lastDoc] - Optional document to start after for pagination
-  /// [limit] - Number of posts to fetch
+  /// Check if a user has liked a post
+  Future<bool> isPostLikedByUser(String postId, String userId) async {
+    try {
+      final result = await supabase
+          .from('post_likes')
+          .select()
+          .eq('post_id', postId)
+          .eq('user_id', userId)
+          .maybeSingle();
+      return result != null;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Save a post
+  Future<Result<void>> savePost(String postId, String userId) async {
+    try {
+      await supabase.from('saved_posts').upsert({
+        'post_id': postId,
+        'user_id': userId,
+        'created_at': DateTime.now().toIso8601String(),
+      });
+      return const Success(null);
+    } catch (e) {
+      return Failure(DatabaseException(
+        message: 'Failed to save post: ${e.toString()}',
+        originalError: e,
+      ));
+    }
+  }
+
+  /// Unsave a post
+  Future<Result<void>> unsavePost(String postId, String userId) async {
+    try {
+      await supabase
+          .from('saved_posts')
+          .delete()
+          .match({'post_id': postId, 'user_id': userId});
+      return const Success(null);
+    } catch (e) {
+      return Failure(DatabaseException(
+        message: 'Failed to unsave post: ${e.toString()}',
+        originalError: e,
+      ));
+    }
+  }
+
+  /// Get comments for a post
+  Future<Result<List<Map<String, dynamic>>>> getComments(String postId) async {
+    try {
+      final response = await supabase
+          .from('comments')
+          .select('''
+            *,
+            profiles!comments_user_id_fkey(username, avatar_url)
+          ''')
+          .eq('post_id', postId)
+          .order('created_at', ascending: true);
+
+      final comments = (response as List).map<Map<String, dynamic>>((raw) {
+        final profile = raw['profiles'] as Map<String, dynamic>? ?? {};
+        return {
+          ...raw,
+          'username': profile['username'] ?? 'user',
+          'avatar': profile['avatar_url'] ?? '',
+        };
+      }).toList();
+
+      return Success(comments);
+    } catch (e) {
+      return Failure(DatabaseException(
+        message: 'Failed to get comments: ${e.toString()}',
+        originalError: e,
+      ));
+    }
+  }
+
+  /// Add a comment to a post
+  Future<Result<Map<String, dynamic>>> addComment({
+    required String postId,
+    required String userId,
+    required String text,
+  }) async {
+    try {
+      final response = await supabase
+          .from('comments')
+          .insert({
+            'post_id': postId,
+            'user_id': userId,
+            'text': text,
+            'created_at': DateTime.now().toIso8601String(),
+          })
+          .select('''
+            *,
+            profiles!comments_user_id_fkey(username, avatar_url)
+          ''')
+          .single();
+
+      final profile =
+          (response['profiles'] as Map<String, dynamic>?) ?? {};
+      return Success({
+        ...response,
+        'username': profile['username'] ?? 'you',
+        'avatar': profile['avatar_url'] ?? '',
+      });
+    } catch (e) {
+      return Failure(DatabaseException(
+        message: 'Failed to add comment: ${e.toString()}',
+        originalError: e,
+      ));
+    }
+  }
+
+  /// Get posts with pagination
   Future<Result<List<Map<String, dynamic>>>> getPostsPaginated({
     String? lastDoc,
     int limit = 20,
   }) async {
     try {
       if (lastDoc != null) {
-        // Get the timestamp of the last post to use for pagination
         final lastPost = await supabase
             .from('posts')
             .select('created_at')
             .eq('id', lastDoc)
             .maybeSingle();
-
         if (lastPost != null) {
           final response = await supabase
               .from('posts')
@@ -215,24 +346,19 @@ class PostRepository extends BaseRepository {
               .lt('created_at', lastPost['created_at'])
               .order('created_at', ascending: false)
               .limit(limit);
-          return Success(response);
+          return Success(response as List<Map<String, dynamic>>);
         }
       }
-
       final response = await supabase
           .from('posts')
           .select()
           .order('created_at', ascending: false)
           .limit(limit);
-
-      return Success(response);
+      return Success(response as List<Map<String, dynamic>>);
     } catch (e) {
-      return Failure(
-        DatabaseException(
-          message: 'Failed to get posts: ${e.toString()}',
-          originalError: e,
-        ),
-      );
+      return Failure(DatabaseException(
+        message: 'Failed to get posts: ${e.toString()}',
+        originalError: e,
+      ));
     }
   }
-}

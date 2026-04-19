@@ -2,552 +2,344 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:uuid/uuid.dart';
 
 import 'package:infected_insta/core/theme/instagram_theme.dart';
-import 'package:infected_insta/data/fixtures/filters_data.dart';
-import 'package:infected_insta/data/repositories/user_repository.dart';
 import 'package:infected_insta/data/repositories/post_repository.dart';
+import 'package:infected_insta/data/repositories/user_repository.dart';
 import 'package:infected_insta/features/create_post/providers/storage_provider.dart';
 import 'package:infected_insta/supabase/supabase_client.dart';
 
-/// Create Post Screen - Main create post UI
 class CreatePostScreen extends ConsumerStatefulWidget {
   const CreatePostScreen({super.key});
-
   @override
   ConsumerState<CreatePostScreen> createState() => _CreatePostScreenState();
 }
 
 class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
-  final TextEditingController _captionController = TextEditingController();
+  final _captionCtrl = TextEditingController();
+  final _locationCtrl = TextEditingController();
+  XFile? _image;
   bool _isPosting = false;
-  XFile? _selectedImage;
 
-  Future<void> _pickImage() async {
-    final picker = ImagePicker();
-    final picked = await picker.pickImage(source: ImageSource.gallery);
-    if (picked != null) {
-      setState(() => _selectedImage = picked);
-    }
+  @override
+  void dispose() {
+    _captionCtrl.dispose();
+    _locationCtrl.dispose();
+    super.dispose();
   }
 
-  Future<void> _uploadPost() async {
-    if (_selectedImage == null || _captionController.text.trim().isEmpty) {
+  Future<void> _pickImage(ImageSource source) async {
+    final picker = ImagePicker();
+    final file = await picker.pickImage(source: source, imageQuality: 85);
+    if (file != null) setState(() => _image = file);
+  }
+
+  void _showPickerOptions() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1A1A2E),
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      builder: (_) => SafeArea(child: Column(mainAxisSize: MainAxisSize.min, children: [
+        const SizedBox(height: 8),
+        Container(width: 40, height: 4, decoration: BoxDecoration(
+            color: Colors.white24, borderRadius: BorderRadius.circular(2))),
+        const SizedBox(height: 12),
+        ListTile(
+          leading: const FaIcon(FontAwesomeIcons.image),
+          title: const Text('Choose from Gallery'),
+          onTap: () { Navigator.pop(context); _pickImage(ImageSource.gallery); },
+        ),
+        ListTile(
+          leading: const FaIcon(FontAwesomeIcons.camera),
+          title: const Text('Take a Photo'),
+          onTap: () { Navigator.pop(context); _pickImage(ImageSource.camera); },
+        ),
+        const SizedBox(height: 8),
+      ])),
+    );
+  }
+
+  Future<void> _share() async {
+    if (_image == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please select a photo first')));
       return;
     }
 
-    final userRepo = UserRepository();
-    final userId = userRepo.getCurrentUserId();
-    if (userId == null) return;
+    final uid = supabase.auth.currentUser?.id;
+    if (uid == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please sign in first')));
+      return;
+    }
 
     setState(() => _isPosting = true);
 
     try {
-      // Upload image first
-      final storageService = SupabaseStorageService(supabase);
-      final uuid = const Uuid();
-      final imageId = uuid.v4();
-      final imagePath = '$userId/$imageId.jpg';
-      
-      // Upload the image to Supabase Storage
-      await storageService.uploadFile(
-        _selectedImage!.path,
-        imagePath,
-      );
-      
-      // Create the post in the database
-      final postRepo = PostRepository();
-      final postData = {
-        'user_id': userId,
-        'image_url': imagePath,
-        'caption': _captionController.text.trim(),
-      };
-      
-      final result = await postRepo.createPost(postData);
-      
+      final storage = SupabaseStorageService(supabase);
+      final imgId = const Uuid().v4();
+      final storagePath = '$uid/$imgId.jpg';
+
+      // Upload image → get public URL
+      final imageUrl = await storage.uploadFile(_image!.path, storagePath);
+
+      // Insert post
+      final result = await PostRepository().createPost({
+        'user_id': uid,
+        'image_url': imageUrl,
+        'caption': _captionCtrl.text.trim(),
+        'location': _locationCtrl.text.trim(),
+      });
+
+      if (!mounted) return;
+
       result.fold(
-        (error) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Error creating post: ${error.message}')),
-            );
-          }
-        },
-        (postId) {
-          if (mounted) {
-            Navigator.pop(context);
-          }
+        (err) => ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: ${err.message}'))),
+        (_) {
+          ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Post shared!')));
+          // Go back to feed
+          context.go('/home');
         },
       );
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Upload failed: $e')));
       }
     } finally {
-      if (mounted) {
-        setState(() => _isPosting = false);
-      }
+      if (mounted) setState(() => _isPosting = false);
     }
   }
 
   @override
-  void dispose() {
-    _captionController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
+    final primary = Theme.of(context).primaryColor;
     return Scaffold(
       backgroundColor: InstagramColors.darkBackground,
       appBar: AppBar(
         backgroundColor: InstagramColors.darkBackground,
         leading: IconButton(
-          icon: const Icon(Icons.close),
-          onPressed: () => Navigator.pop(context),
+          icon: const FaIcon(FontAwesomeIcons.xmark),
+          onPressed: () => Navigator.canPop(context) ? Navigator.pop(context) : context.go('/home'),
         ),
-        title: const Text('New Post'),
+        title: const Text('New Post', style: TextStyle(fontWeight: FontWeight.bold)),
         actions: [
           TextButton(
-            onPressed: _isPosting ? null : _createPost,
-            child: Text(
-              'Share',
-              style: TextStyle(
-                color: _isPosting
-                    ? InstagramColors.darkTextSecondary
-                    : InstagramColors.primary,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
+            onPressed: _isPosting ? null : _share,
+            child: Text('Share',
+                style: TextStyle(
+                  color: _isPosting ? Colors.white30 : primary,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
+                )),
           ),
         ],
       ),
       body: SingleChildScrollView(
-        child: Column(
-          children: [
-            // Image/Video preview area
-            GestureDetector(
-              onTap: _openGallery,
-              child: Container(
-                height: 300,
-                margin: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: InstagramColors.darkSurface,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: InstagramColors.darkSecondary),
-                ),
-                child: const Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.add_photo_alternate_outlined,
-                      size: 60,
-                      color: InstagramColors.darkTextSecondary,
-                    ),
-                    SizedBox(height: 16),
-                    Text(
-                      'Tap to add photo or video',
-                      style: TextStyle(
-                        color: InstagramColors.darkTextSecondary,
-                      ),
-                    ),
-                  ],
-                ),
+        child: Column(children: [
+          // ── Image Preview ──────────────────────────────────────────────
+          GestureDetector(
+            onTap: _showPickerOptions,
+            child: Container(
+              height: 320,
+              margin: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: InstagramColors.darkSurface,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: _image != null
+                    ? Colors.transparent
+                    : InstagramColors.darkSecondary),
               ),
+              child: _image != null
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(14),
+                      child: Image.file(File(_image!.path), fit: BoxFit.cover,
+                          width: double.infinity),
+                    )
+                  : Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                      FaIcon(FontAwesomeIcons.images, size: 56, color: primary.withValues(alpha: 0.6)),
+                      const SizedBox(height: 14),
+                      Text('Tap to add a photo',
+                          style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 15)),
+                      const SizedBox(height: 8),
+                      Text('Gallery or Camera',
+                          style: TextStyle(color: Colors.white.withValues(alpha: 0.3), fontSize: 12)),
+                    ]),
             ),
-            // Caption input
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: TextField(
-                controller: _captionController,
+          ),
+
+          // ── Caption ────────────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              CircleAvatar(radius: 18, backgroundColor: const Color(0xFF2A2A3E),
+                  child: const FaIcon(FontAwesomeIcons.user, size: 16, color: Colors.white54)),
+              const SizedBox(width: 12),
+              Expanded(child: TextField(
+                controller: _captionCtrl,
                 maxLines: 5,
                 maxLength: 2200,
-                decoration: const InputDecoration(
-                  hintText: 'Write a caption...',
-                  hintStyle: TextStyle(
-                    color: InstagramColors.darkTextSecondary,
-                  ),
+                decoration: InputDecoration(
+                  hintText: 'Write a caption…',
+                  hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.35)),
                   border: InputBorder.none,
+                  counterStyle: TextStyle(color: Colors.white.withValues(alpha: 0.3)),
                 ),
-                style: const TextStyle(color: InstagramColors.darkText),
-              ),
-            ),
-            const Divider(color: InstagramColors.darkSecondary),
-            // Options
-            ListTile(
-              leading: const Icon(
-                Icons.person_add_outlined,
-                color: InstagramColors.darkText,
-              ),
-              title: const Text(
-                'Tag people',
-                style: TextStyle(color: InstagramColors.darkText),
-              ),
-              trailing: const Icon(
-                Icons.chevron_right,
-                color: InstagramColors.darkTextSecondary,
-              ),
-              onTap: () {},
-            ),
-            ListTile(
-              leading: const Icon(
-                Icons.location_on_outlined,
-                color: InstagramColors.darkText,
-              ),
-              title: const Text(
-                'Add location',
-                style: TextStyle(color: InstagramColors.darkText),
-              ),
-              trailing: const Icon(
-                Icons.chevron_right,
-                color: InstagramColors.darkTextSecondary,
-              ),
-              onTap: () {},
-            ),
-            ListTile(
-              leading: const Icon(
-                Icons.music_note_outlined,
-                color: InstagramColors.darkText,
-              ),
-              title: const Text(
-                'Add music',
-                style: TextStyle(color: InstagramColors.darkText),
-              ),
-              trailing: const Icon(
-                Icons.chevron_right,
-                color: InstagramColors.darkTextSecondary,
-              ),
-              onTap: () {},
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+                style: const TextStyle(color: Colors.white, fontSize: 15),
+              )),
+            ]),
+          ),
 
-  void _openGallery() {
-    _pickImage();
-  }
+          const Divider(color: Colors.white12),
 
-  void _createPost() {
-    _uploadPost();
-  }
-}
+          // ── Options ────────────────────────────────────────────────────
+          ListTile(
+            leading: const FaIcon(FontAwesomeIcons.locationDot, size: 18),
+            title: TextField(
+              controller: _locationCtrl,
+              decoration: const InputDecoration(
+                hintText: 'Add location',
+                hintStyle: TextStyle(color: InstagramColors.darkTextSecondary),
+                border: InputBorder.none,
+              ),
+              style: const TextStyle(color: InstagramColors.darkText),
+            ),
+          ),
 
-/// Gallery Picker Sheet
-class GalleryPickerSheet extends StatelessWidget {
-  const GalleryPickerSheet({super.key});
+          const Divider(color: Colors.white12),
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.7,
-      decoration: const BoxDecoration(
-        color: InstagramColors.darkBackground,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      child: Column(
-        children: [
-          // Header
+          ListTile(
+            leading: const FaIcon(FontAwesomeIcons.userTag, size: 18),
+            title: const Text('Tag people'),
+            trailing: const FaIcon(FontAwesomeIcons.chevronRight, size: 14, color: Colors.white38),
+            onTap: () => ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Tag people — coming in next update'))),
+          ),
+
+          const Divider(color: Colors.white12),
+
+          // ── Share button (bottom) ──────────────────────────────────────
           Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Gallery',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: InstagramColors.darkText,
-                  ),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+            child: SizedBox(width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _isPosting ? null : _share,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: primary,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 ),
-                Row(
-                  children: [
-                    IconButton(
-                      icon: const Icon(
-                        Icons.camera_alt_outlined,
-                        color: InstagramColors.darkText,
-                      ),
-                      onPressed: () {
-                        Navigator.pop(context);
-                        // Open camera
-                      },
-                    ),
-                    IconButton(
-                      icon: const Icon(
-                        Icons.select_all,
-                        color: InstagramColors.primary,
-                      ),
-                      onPressed: () {
-                        // Multi-select mode
-                      },
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          // Grid
-          Expanded(
-            child: GridView.builder(
-              padding: const EdgeInsets.all(2),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                crossAxisSpacing: 2,
-                mainAxisSpacing: 2,
+                child: _isPosting
+                    ? const SizedBox(width: 20, height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : const Text('Share Post',
+                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
               ),
-              itemCount: 30,
-              itemBuilder: (context, index) {
-                return Container(
-                  color: Colors.primaries[index % Colors.primaries.length]
-                      .withOpacity(0.2),
-                  child: const Icon(Icons.image, color: Colors.white54),
-                );
-              },
             ),
           ),
-        ],
+        ]),
       ),
     );
   }
 }
 
-/// Camera Capture Screen
+// ── Camera Capture Screen ────────────────────────────────────────────────────
 class CameraCaptureScreen extends StatelessWidget {
   const CameraCaptureScreen({super.key});
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Top bar
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.close, color: Colors.white),
-                  onPressed: () => Navigator.pop(context),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.flash_off, color: Colors.white),
-                  onPressed: () {},
-                ),
-              ],
+      body: SafeArea(child: Column(children: [
+        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+          IconButton(icon: const FaIcon(FontAwesomeIcons.xmark, color: Colors.white),
+              onPressed: () => Navigator.pop(context)),
+          IconButton(icon: const FaIcon(FontAwesomeIcons.boltLightning, color: Colors.white),
+              onPressed: () {}),  // Flash toggle — requires camera plugin
+        ]),
+        const Expanded(child: Center(child: FaIcon(FontAwesomeIcons.camera,
+            size: 80, color: Colors.white24))),
+        Padding(padding: const EdgeInsets.all(24),
+          child: Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
+            const FaIcon(FontAwesomeIcons.images, color: Colors.white, size: 28),
+            GestureDetector(
+              onTap: () async {
+                final file = await ImagePicker().pickImage(source: ImageSource.camera);
+                if (file != null && context.mounted) Navigator.pop(context, file);
+              },
+              child: Container(width: 72, height: 72, decoration: BoxDecoration(
+                shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 4))),
             ),
-            // Camera preview
-            const Expanded(
-              child: Center(
-                child: Icon(
-                  Icons.camera_alt_outlined,
-                  size: 100,
-                  color: Colors.white38,
-                ),
-              ),
-            ),
-            // Bottom controls
-            Padding(
-              padding: const EdgeInsets.all(24),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  // Gallery button
-                  const Icon(
-                    Icons.photo_library_outlined,
-                    color: Colors.white,
-                    size: 30,
-                  ),
-                  // Capture button
-                  Container(
-                    width: 80,
-                    height: 80,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 4),
-                    ),
-                    child: Center(
-                      child: Container(
-                        width: 60,
-                        height: 60,
-                        decoration: const BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ),
-                  // Flip camera
-                  const Icon(
-                    Icons.flip_camera_ios_outlined,
-                    color: Colors.white,
-                    size: 30,
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
+            const FaIcon(FontAwesomeIcons.rotate, color: Colors.white, size: 28),
+          ])),
+      ])),
     );
   }
 }
 
-/// Edit/Crop Screen
-class EditCropScreen extends StatefulWidget {
+// ── Edit/Crop Screen ─────────────────────────────────────────────────────────
+class EditCropScreen extends StatelessWidget {
   const EditCropScreen({super.key});
-
-  @override
-  State<EditCropScreen> createState() => _EditCropScreenState();
-}
-
-class _EditCropScreenState extends State<EditCropScreen> {
-  String _selectedFilter = 'Original';
-
-  List<Map<String, dynamic>> get _filters => FiltersData.filters;
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: InstagramColors.darkBackground,
       appBar: AppBar(
         backgroundColor: InstagramColors.darkBackground,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
-        ),
         title: const Text('Edit'),
         actions: [
           TextButton(
-            onPressed: () {
-              // Next
-            },
-            child: const Text(
-              'Next',
-              style: TextStyle(
-                color: InstagramColors.primary,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
+            onPressed: () => context.push('/create'),
+            child: const Text('Next', style: TextStyle(color: InstagramColors.primary,
+                fontWeight: FontWeight.bold)),
           ),
         ],
       ),
-      body: Column(
-        children: [
-          // Image preview with filter
-          Expanded(
-            child: Container(
-              margin: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color:
-                    _filters.firstWhere(
-                      (f) => f['name'] == _selectedFilter,
-                    )['color'] ??
-                    InstagramColors.darkSurface,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Center(
-                child: Icon(Icons.image, size: 100, color: Colors.white38),
-              ),
-            ),
-          ),
-          // Edit tools
-          SizedBox(
-            height: 100,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              children: [
-                _buildEditTool(Icons.crop, 'Crop'),
-                _buildEditTool(Icons.rotate_right, 'Rotate'),
-                _buildEditTool(Icons.tune, 'Adjust'),
-              ],
-            ),
-          ),
-          // Filters
-          SizedBox(
-            height: 120,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              itemCount: _filters.length,
-              itemBuilder: (context, index) {
-                final filter = _filters[index];
-                final isSelected = filter['name'] == _selectedFilter;
-                return GestureDetector(
-                  onTap: () => setState(() => _selectedFilter = filter['name']),
-                  child: Container(
-                    width: 80,
-                    margin: const EdgeInsets.all(8),
-                    child: Column(
-                      children: [
-                        Container(
-                          width: 70,
-                          height: 70,
-                          decoration: BoxDecoration(
-                            color:
-                                filter['color'] ?? InstagramColors.darkSurface,
-                            borderRadius: BorderRadius.circular(8),
-                            border: isSelected
-                                ? Border.all(
-                                    color: InstagramColors.primary,
-                                    width: 2,
-                                  )
-                                : null,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          filter['name'],
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: isSelected
-                                ? InstagramColors.primary
-                                : InstagramColors.darkTextSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
+      body: Column(children: [
+        const Expanded(child: Center(child: Column(mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            FaIcon(FontAwesomeIcons.cropSimple, size: 48, color: Colors.white24),
+            SizedBox(height: 12),
+            Text('Select a photo to edit', style: TextStyle(color: Colors.white38)),
+          ]))),
+        SafeArea(child: Padding(
+          padding: EdgeInsets.fromLTRB(16, 0, 16, 16),
+          child: Text('Crop & filter tools available after selecting a photo',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.white24, fontSize: 12)),
+        )),
+      ]),
     );
   }
+}
 
-  Widget _buildEditTool(IconData icon, String label) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Column(
-        children: [
-          Container(
-            width: 50,
-            height: 50,
-            decoration: BoxDecoration(
-              color: InstagramColors.darkSurface,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: InstagramColors.darkText),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 12,
-              color: InstagramColors.darkTextSecondary,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+// ── Gallery Picker Sheet ─────────────────────────────────────────────────────
+class GalleryPickerSheet extends StatelessWidget {
+  const GalleryPickerSheet({super.key});
+  @override
+  Widget build(BuildContext context) => Container(
+    decoration: const BoxDecoration(
+      color: InstagramColors.darkBackground,
+      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+    ),
+    child: Column(children: [
+      const SizedBox(height: 16),
+      const Text('Gallery', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+      const SizedBox(height: 12),
+      Expanded(child: GridView.builder(
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 3, crossAxisSpacing: 2, mainAxisSpacing: 2),
+        itemCount: 12,
+        itemBuilder: (_, i) => Container(color: Colors.white10,
+            child: const FaIcon(FontAwesomeIcons.image, color: Colors.white24)),
+      )),
+    ]),
+  );
 }

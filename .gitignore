@@ -85,3 +85,25 @@ ios/Podfile.lock
 
 # Code coverage
 coverage/
+# Android signing
+android/key.properties
+*.jks
+*.keystore
+
+# Environment / secrets
+.env
+.env.local
+.env.production
+
+# Build outputs
+build/
+android/.gradle/
+
+# macOS
+.DS_Store
+**/.DS_Store
+
+# Generated files
+*.g.dart
+*.freezed.dart
+coverage/

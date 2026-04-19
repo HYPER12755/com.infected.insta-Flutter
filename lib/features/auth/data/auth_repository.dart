@@ -72,7 +72,7 @@ class AuthRepository {
   Future<bool> signInWithGoogle() async {
     final response = await supabase.auth.signInWithOAuth(
       OAuthProvider.google,
-      redirectTo: 'io.supabase.flutter://callback',
+      redirectTo: 'com.infected.insta://auth/callback',
     );
     return response;
   }
@@ -81,7 +81,7 @@ class AuthRepository {
   Future<bool> signInWithGitHub() async {
     final response = await supabase.auth.signInWithOAuth(
       OAuthProvider.github,
-      redirectTo: 'io.supabase.flutter://callback',
+      redirectTo: 'com.infected.insta://auth/callback',
     );
     return response;
   }
@@ -91,24 +91,23 @@ class AuthRepository {
     await supabase.auth.signOut();
   }
 
-  /// Get user profile by ID
+  /// Get user profile by ID from profiles table
   Future<Map<String, dynamic>?> getUserById(String userId) async {
-    final response = await supabase
-        .from('users')
-        .select()
-        .eq('id', userId)
-        .maybeSingle();
-    return response;
+    try {
+      final response = await supabase
+          .from('profiles')
+          .select()
+          .eq('id', userId)
+          .maybeSingle();
+      return response as Map<String, dynamic>?;
+    } catch (_) { return null; }
   }
 
-  /// Update user profile
+  /// Update user profile in profiles table
   Future<void> updateUserProfile({
     required String userId,
     required Map<String, dynamic> data,
   }) async {
-    await supabase
-        .from('users')
-        .update(data)
-        .eq('id', userId);
+    await supabase.from('profiles').update(data).eq('id', userId);
   }
 }

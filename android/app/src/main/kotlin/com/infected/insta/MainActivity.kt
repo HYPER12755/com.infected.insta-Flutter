@@ -1,4 +1,4 @@
-package com.example.temp_project
+package com.infected.insta
 
 import io.flutter.embedding.android.FlutterActivity
 

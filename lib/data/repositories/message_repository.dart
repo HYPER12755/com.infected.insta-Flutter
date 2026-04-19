@@ -1,248 +1,216 @@
+import 'dart:async';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../supabase/supabase_client.dart';
 import '../models/result.dart';
 import 'base_repository.dart';
-import '../realtime/realtime_messages_service.dart';
 
-/// Message repository with real-time support
 class MessageRepository extends BaseRepository {
-  // Real-time service for live updates
-  final RealtimeMessagesService _realtimeService = RealtimeMessagesService();
-  /// Get all conversations for a user
-  /// Returns a Result with list of conversations or error
-  Future<Result<List<Map<String, dynamic>>>> getConversations(
-    String userId,
-  ) async {
+  // ── Conversations ────────────────────────────────────────────────────────
+  Future<Result<List<Map<String, dynamic>>>> getConversations(String userId) async {
     try {
-      // Get conversations where the user is a participant
-      final response = await supabase
+      // Fetch conversations where user is a participant
+      final res = await supabase
           .from('conversations')
-          .select()
+          .select('id, updated_at, last_message, last_sender_id, participant_ids')
           .contains('participant_ids', [userId])
           .order('updated_at', ascending: false);
 
-      return Success(response);
-    } catch (e) {
-      return Failure(
-        DatabaseException(
-          message: 'Failed to get conversations: ${e.toString()}',
-          originalError: e,
-        ),
-      );
-    }
-  }
+      final convList = res as List;
+      final convs = <Map<String, dynamic>>[];
 
-  /// Get real-time stream of messages for a conversation
-  /// Uses Supabase Realtime stream for real-time updates
-  Stream<Result<List<Map<String, dynamic>>>> getMessages(
-    String conversationId,
-  ) {
-    // Use the real-time service for messages stream
-    return _realtimeService.getMessagesStream(conversationId)
-        .map((maps) => Success<List<Map<String, dynamic>>>(maps))
-        .handleError(
-          (error) => Failure<List<Map<String, dynamic>>>(
-            DatabaseException(
-              message: 'Failed to get messages: ${error.toString()}',
-              originalError: error,
-            ),
-          ),
-        );
-  }
+      for (final conv in convList) {
+        final ids = (conv['participant_ids'] as List).cast<String>();
+        final otherId = ids.firstWhere((id) => id != userId, orElse: () => '');
 
-  /// Watch for new messages in real-time
-  Stream<Result<Map<String, dynamic>>> watchNewMessages(
-    String conversationId,
-  ) {
-    return _realtimeService.watchNewMessages(conversationId)
-        .map((message) => Success<Map<String, dynamic>>(message))
-        .handleError(
-          (error) => Failure<Map<String, dynamic>>(
-            DatabaseException(
-              message: 'Failed to watch messages: ${error.toString()}',
-              originalError: error,
-            ),
-          ),
-        );
-  }
+        Map<String, dynamic> profile = {};
+        if (otherId.isNotEmpty) {
+          try {
+            final p = await supabase
+                .from('profiles')
+                .select('id, username, avatar_url, full_name')
+                .eq('id', otherId)
+                .maybeSingle();
+            if (p != null) profile = p as Map<String, dynamic>;
+          } catch (_) {}
+        }
 
-  /// Initialize real-time service for a user
-  void initializeRealtime(String userId) {
-    _realtimeService.initialize(userId);
-  }
-
-  /// Start typing indicator
-  Future<void> startTyping(String conversationId, String userId) async {
-    await _realtimeService.startTyping(conversationId, userId);
-  }
-
-  /// Stop typing indicator
-  Future<void> stopTyping(String conversationId, String userId) async {
-    await _realtimeService.stopTyping(conversationId, userId);
-  }
-
-  /// Mark message as delivered
-  Future<void> markMessageDelivered(String messageId) async {
-    await _realtimeService.markDelivered(messageId);
-  }
-
-  /// Mark message as read
-  Future<void> markMessageRead(String messageId) async {
-    await _realtimeService.markRead(messageId);
-  }
-
-  Future<Result<List<Map<String, dynamic>>>> _fetchMessages(
-    String conversationId,
-  ) async {
-    try {
-      final response = await supabase
-          .from('messages')
-          .select()
-          .eq('conversation_id', conversationId)
-          .order('created_at', ascending: true);
-
-      return Success(response);
-    } catch (e) {
-      return Failure(
-        DatabaseException(
-          message: 'Failed to get messages: ${e.toString()}',
-          originalError: e,
-        ),
-      );
-    }
-  }
-
-  /// Send a message
-  /// Returns a Result indicating success or failure
-  Future<Result<void>> sendMessage(
-    String conversationId,
-    Map<String, dynamic> message,
-  ) async {
-    try {
-      final dataWithTimestamp = {
-        ...message,
-        'conversation_id': conversationId,
-        'created_at': DateTime.now().toIso8601String(),
-      };
-
-      await supabase.from('messages').insert(dataWithTimestamp);
-
-      // Update conversation's updated_at timestamp
-      await supabase
-          .from('conversations')
-          .update({'updated_at': DateTime.now().toIso8601String()})
-          .eq('id', conversationId);
-
-      return const Success(null);
-    } catch (e) {
-      return Failure(
-        DatabaseException(
-          message: 'Failed to send message: ${e.toString()}',
-          originalError: e,
-        ),
-      );
-    }
-  }
-
-  /// Create a new conversation
-  /// Returns a Result with the created conversation ID or error
-  Future<Result<String>> createConversation(List<String> participants) async {
-    try {
-      final response = await supabase
-          .from('conversations')
-          .insert({
-            'participant_ids': participants,
-            'created_at': DateTime.now().toIso8601String(),
-            'updated_at': DateTime.now().toIso8601String(),
-          })
-          .select()
-          .single();
-
-      return Success(response['id'] as String);
-    } catch (e) {
-      return Failure(
-        DatabaseException(
-          message: 'Failed to create conversation: ${e.toString()}',
-          originalError: e,
-        ),
-      );
-    }
-  }
-
-  /// Get or create conversation between two users
-  /// Returns a Result with the conversation ID or error
-  Future<Result<String>> getOrCreateConversation(
-    String userId1,
-    String userId2,
-  ) async {
-    try {
-      // First, check if a conversation already exists between these users
-      final existing = await supabase.from('conversations').select().contains(
-        'participant_ids',
-        [userId1, userId2],
-      ).maybeSingle();
-
-      if (existing != null) {
-        return Success(existing['id'] as String);
+        convs.add({
+          'id': conv['id'],
+          'updated_at': conv['updated_at'],
+          'last_message': conv['last_message'] ?? '',
+          'last_sender_id': conv['last_sender_id'],
+          'otherUserId': profile['id'] ?? otherId,
+          'username': profile['username'] ?? 'User',
+          'avatar': profile['avatar_url'] ?? '',
+          'name': profile['full_name'] ?? profile['username'] ?? 'User',
+        });
       }
 
-      // Create a new conversation
-      return createConversation([userId1, userId2]);
+      return Success(convs);
     } catch (e) {
-      return Failure(
-        DatabaseException(
-          message: 'Failed to get or create conversation: ${e.toString()}',
-          originalError: e,
-        ),
-      );
+      return Failure(DatabaseException(
+        message: 'Failed to get conversations: $e', originalError: e));
     }
   }
 
-  /// Mark conversation as read
-  /// Returns a Result indicating success or failure
-  Future<Result<void>> markConversationAsRead(
-    String conversationId,
-    String userId,
-  ) async {
+  /// Get or create a 1:1 conversation between two users
+  Future<Result<String>> getOrCreateConversation(String userId1, String userId2) async {
     try {
-      // Update messages in the conversation as read
+      // Try to find existing
+      final existing = await supabase
+          .from('conversations')
+          .select('id')
+          .contains('participant_ids', [userId1])
+          .contains('participant_ids', [userId2])
+          .maybeSingle();
+
+      if (existing != null) return Success(existing['id'] as String);
+
+      // Create new
+      final created = await supabase.from('conversations').insert({
+        'participant_ids': [userId1, userId2],
+        'created_at': DateTime.now().toIso8601String(),
+        'updated_at': DateTime.now().toIso8601String(),
+        'last_message': '',
+      }).select('id').single();
+
+      return Success(created['id'] as String);
+    } catch (e) {
+      return Failure(DatabaseException(
+        message: 'Failed to get/create conversation: $e', originalError: e));
+    }
+  }
+
+  // ── Messages stream (real-time) ──────────────────────────────────────────
+  Stream<List<Map<String, dynamic>>> getMessagesStream(
+      String conversationId, String currentUserId) {
+    return supabase
+        .from('messages')
+        .stream(primaryKey: ['id'])
+        .eq('conversation_id', conversationId)
+        .order('created_at')
+        .map((rows) => rows.map<Map<String, dynamic>>((r) => {
+              ...r,
+              'isMe': r['sender_id'] == currentUserId,
+              'text': r['text'] ?? r['content'] ?? '',
+              'reply_text': r['reply_text'],
+              'reply_sender': r['reply_sender'],
+              'is_deleted': r['is_deleted'] ?? false,
+              'reactions': r['reactions'] ?? [],
+            }).toList());
+  }
+
+  /// Compatibility wrapper that returns a Stream<Result<...>>
+  Stream<Result<List<Map<String, dynamic>>>> getMessages(String conversationId) {
+    final uid = currentUser?.id ?? '';
+    return getMessagesStream(conversationId, uid)
+        .map((msgs) => Success<List<Map<String, dynamic>>>(msgs));
+  }
+
+  // ── Send message ─────────────────────────────────────────────────────────
+  Future<Result<void>> sendMessage(
+      String conversationId, Map<String, dynamic> data) async {
+    try {
+      final uid = currentUser?.id;
+      if (uid == null) return const Failure(DatabaseException(message: 'Not authenticated'));
+
+      await supabase.from('messages').insert({
+        'conversation_id': conversationId,
+        'sender_id': uid,
+        'text': data['text'] ?? data['content'] ?? '',
+        'created_at': DateTime.now().toIso8601String(),
+        'is_read': false,
+        // Optional reply fields
+        if (data['reply_to_id'] != null) 'reply_to_id': data['reply_to_id'],
+        if (data['reply_text'] != null)  'reply_text': data['reply_text'],
+        if (data['reply_sender'] != null)'reply_sender': data['reply_sender'],
+      });
+
+      // Update conversation preview
+      await supabase.from('conversations').update({
+        'last_message': data['text'] ?? data['content'] ?? '',
+        'last_sender_id': uid,
+        'updated_at': DateTime.now().toIso8601String(),
+      }).eq('id', conversationId);
+
+      return const Success(null);
+    } catch (e) {
+      return Failure(DatabaseException(
+        message: 'Failed to send message: $e', originalError: e));
+    }
+  }
+
+  // ── Mark messages as read ────────────────────────────────────────────────
+  Future<void> markConversationRead(String conversationId, String userId) async {
+    try {
       await supabase
           .from('messages')
-          .update({'read_at': DateTime.now().toIso8601String()})
+          .update({'is_read': true})
           .eq('conversation_id', conversationId)
-          .neq('sender_id', userId);
-
-      return const Success(null);
-    } catch (e) {
-      return Failure(
-        DatabaseException(
-          message: 'Failed to mark conversation as read: ${e.toString()}',
-          originalError: e,
-        ),
-      );
-    }
+          .neq('sender_id', userId)
+          .eq('is_read', false);
+    } catch (_) {}
   }
 
-  /// Delete a conversation
-  /// Returns a Result indicating success or failure
-  Future<Result<void>> deleteConversation(String conversationId) async {
+  // ── Typing indicator (broadcast) ─────────────────────────────────────────
+  RealtimeChannel typingChannel(String conversationId) {
+    return supabase.channel('typing:$conversationId');
+  }
+
+  Future<void> sendTyping(String conversationId, String userId, bool isTyping) async {
     try {
-      // Delete all messages in the conversation first
-      await supabase
-          .from('messages')
-          .delete()
-          .eq('conversation_id', conversationId);
+      await supabase.from('typing_indicators').upsert({
+        'conversation_id': conversationId,
+        'user_id': userId,
+        'is_typing': isTyping,
+        'updated_at': DateTime.now().toIso8601String(),
+      });
+    } catch (_) {}
+  }
 
-      // Then delete the conversation
-      await supabase.from('conversations').delete().eq('id', conversationId);
+  Stream<bool> watchTyping(String conversationId, String otherUserId) {
+    return supabase
+        .from('typing_indicators')
+        .stream(primaryKey: ['conversation_id', 'user_id'])
+        .eq('conversation_id', conversationId)
+        .map((rows) {
+          final row = rows.where((r) => r['user_id'] == otherUserId).firstOrNull;
+          if (row == null) return false;
+          final updated = DateTime.tryParse(row['updated_at'] ?? '') ?? DateTime(2000);
+          return row['is_typing'] == true &&
+              DateTime.now().difference(updated).inSeconds < 4;
+        });
+  }
 
-      return const Success(null);
+  // ── Unread count ─────────────────────────────────────────────────────────
+  Stream<int> getUnreadCount(String userId) {
+    return supabase
+        .from('messages')
+        .stream(primaryKey: ['id'])
+        .map((rows) => rows
+            .where((r) => r['is_read'] != true && r['sender_id'] != userId)
+            .length);
+  }
+
+  // ── Legacy compat ────────────────────────────────────────────────────────
+  Future<void> startTyping(String conversationId, String userId) =>
+      sendTyping(conversationId, userId, true);
+  Future<void> stopTyping(String conversationId, String userId) =>
+      sendTyping(conversationId, userId, false);
+  void initializeRealtime(String userId) {}
+
+  Future<Result<String>> createConversation(List<String> participants) async {
+    try {
+      final res = await supabase.from('conversations').insert({
+        'participant_ids': participants,
+        'created_at': DateTime.now().toIso8601String(),
+        'updated_at': DateTime.now().toIso8601String(),
+        'last_message': '',
+      }).select('id').single();
+      return Success(res['id'] as String);
     } catch (e) {
-      return Failure(
-        DatabaseException(
-          message: 'Failed to delete conversation: ${e.toString()}',
-          originalError: e,
-        ),
-      );
+      return Failure(DatabaseException(
+        message: 'Failed to create conversation: $e', originalError: e));
     }
   }
 }

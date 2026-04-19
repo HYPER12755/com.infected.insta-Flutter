@@ -1,329 +1,180 @@
 # Setup Guide
 
-This guide will help you set up the InstaClone development environment and get the app running on your local machine.
-
-## Table of Contents
-
-1. [Prerequisites](#prerequisites)
-2. [Clone the Repository](#clone-the-repository)
-3. [Install Flutter](#install-flutter)
-4. [Configure Supabase](#configure-supabase)
-5. [Environment Setup](#environment-setup)
-6. [Build and Run](#build-and-run)
-7. [Optional: Google Sign-In Setup](#optional-google-sign-in-setup)
-8. [Troubleshooting](#troubleshooting)
+Complete guide to get Infected running on your machine.
 
 ---
 
 ## Prerequisites
 
-Before you begin, ensure you have the following installed:
+| Tool | Version | Notes |
+|------|---------|-------|
+| Flutter SDK | 3.9+ | [flutter.dev/install](https://flutter.dev/docs/get-started/install) |
+| Dart SDK | 3.x | Bundled with Flutter |
+| Android Studio | Latest | Android SDK + emulator |
+| VS Code | Any | With Flutter + Dart extensions |
+| Git | 2.x | — |
 
-| Requirement | Version | Notes |
-|-------------|---------|-------|
-| **Flutter SDK** | 3.9.x or higher | [Install Guide](https://flutter.dev/docs/get-started/install) |
-| **Dart SDK** | 3.x or higher | Included with Flutter |
-| **Android Studio** | Latest | For Android development |
-| **Xcode** | Latest | For iOS development (macOS only) |
-| **Git** | 2.x | Version control |
-
-### System Requirements
-
-- **Operating System**: Windows 10+, macOS 11+, or Linux
-- **RAM**: 8GB minimum (16GB recommended)
-- **Disk Space**: 2GB for Flutter + project dependencies
+**Android requirements:** API 24+ device or emulator (WebRTC needs API 24).
 
 ---
 
-## Clone the Repository
+## 1. Clone & Install
 
 ```bash
-# Clone the repository
-git clone <repository-url>
-
-# Navigate to project directory
-cd myapp
-```
-
----
-
-## Install Flutter
-
-### macOS / Linux
-
-```bash
-# Using git (recommended)
-git clone https://github.com/flutter/flutter.git -b stable --depth 1
-
-# Add Flutter to PATH (add to ~/.bashrc or ~/.zshrc)
-export PATH="$PATH:/path/to/flutter/bin"
-
-# Verify installation
-flutter --version
-```
-
-### Windows
-
-1. Download Flutter SDK from [flutter.dev](https://flutter.dev/docs/get-started/install/windows)
-2. Extract to a location (e.g., `C:\flutter`)
-3. Add to PATH via System Properties > Environment Variables
-4. Run `flutter --version` in a new terminal
-
-### Run Flutter Doctor
-
-```bash
-# Verify your Flutter setup
-flutter doctor
-```
-
-Expected output should show all green checkmarks. Address any issues before proceeding.
-
----
-
-## Configure Supabase
-
-### Step 1: Create Supabase Project
-
-1. Go to [supabase.com](https://supabase.com) and sign in
-2. Click "New Project"
-3. Enter project details:
-   - **Name**: `instaclone` (or your preferred name)
-   - **Database Password**: Create a strong password
-   - **Region**: Choose closest to your users
-4. Click "Create new project"
-5. Wait for project to be provisioned (1-2 minutes)
-
-### Step 2: Get API Credentials
-
-1. Go to **Project Settings** (gear icon) → **API**
-2. Copy the following values:
-   - **Project URL** - e.g., `https://xxxxx.supabase.co`
-   - **anon public key** - A long string starting with `eyJ...`
-
-### Step 3: Configure Environment Variables
-
-Update `lib/core/config/app_config.dart`:
-
-```dart
-class AppConfig {
-  static const String supabaseUrl = 'https://your-project.supabase.co';
-  static const String supabaseAnonKey = 'your-anon-key-here';
-  
-  // ... rest of config
-}
-```
-
-Or set environment variables:
-
-```bash
-# For Flutter run
-flutter run --dart-define=SUPABASE_URL=https://xxxxx.supabase.co --dart-define=SUPABASE_ANON_KEY=eyJ...
-```
-
----
-
-## Environment Setup
-
-### Install Dependencies
-
-```bash
-# Get all dependencies
+git clone <repo-url>
+cd com.infected.insta-Flutter
 flutter pub get
 ```
 
-### Configure Android
+---
 
-1. Open `android/app/build.gradle.kts`
-2. Ensure minSdkVersion is at least 21:
+## 2. Configure Supabase
 
-```kotlin
-android {
-    defaultConfig {
-        minSdk = 21
-    }
-}
+### Option A — Edit source (simplest for dev)
+
+Open `lib/core/config/app_config.dart` and update:
+
+```dart
+static const String supabaseUrl = 'https://YOUR_PROJECT.supabase.co';
+static const String supabaseAnonKey = 'YOUR_ANON_KEY';
 ```
 
-3. Add internet permission in `android/app/src/main/AndroidManifest.xml`:
+### Option B — Build-time defines (recommended for CI/CD)
 
-```xml
-<manifest>
-    <uses-permission android:name="android.permission.INTERNET"/>
-    <uses-permission android:name="android.permission.CAMERA"/>
-    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
-    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
-</manifest>
+```bash
+flutter run \
+  --dart-define=SUPABASE_URL=https://YOUR_PROJECT.supabase.co \
+  --dart-define=SUPABASE_ANON_KEY=eyJhb...
 ```
 
-### Configure iOS (macOS only)
+### Option C — `.env` via direnv / secrets
 
-1. Open `ios/Runner/Info.plist`
-2. Add required permissions:
-
-```xml
-<key>NSCameraUsageDescription</key>
-<string>We need camera access for video calls and posts</string>
-<key>NSMicrophoneUsageDescription</key>
-<string>We need microphone access for audio calls</string>
-<key>NSPhotoLibraryUsageDescription</key>
-<string>We need photo library access to select images</string>
+```bash
+export SUPABASE_URL=https://YOUR_PROJECT.supabase.co
+export SUPABASE_ANON_KEY=eyJhb...
+flutter run --dart-define=SUPABASE_URL=$SUPABASE_URL --dart-define=SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY
 ```
 
 ---
 
-## Build and Run
+## 3. Set Up the Database
 
-### Development Build
+Run the complete SQL schema from [docs/SUPABASE.md](SUPABASE.md) in your Supabase SQL editor. This creates all tables, triggers, RLS policies, and Storage buckets.
 
-```bash
-# Run on connected device/emulator
-flutter run
+---
+
+## 4. Android Setup
+
+Everything is pre-configured in `android/app/build.gradle.kts`:
+
+- `applicationId = "com.infected.insta"`
+- `minSdk = 24` (WebRTC requirement)
+- NDK pinned to `27.0.12077973`
+- Core library desugaring enabled
+- ProGuard enabled for release
+
+**For release builds**, create `android/key.properties` and update `build.gradle.kts` signing config:
+
+```properties
+# android/key.properties (DO NOT commit this file)
+storePassword=your-store-password
+keyPassword=your-key-password
+keyAlias=your-key-alias
+storeFile=/path/to/your.keystore
 ```
 
-### Build APK (Android)
+Then update `build.gradle.kts` `release` block to reference it.
+
+---
+
+## 5. Google Sign-In Setup
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com/) → Create project
+2. **APIs & Services → OAuth consent screen** → External → fill details
+3. **Credentials → Create OAuth Client ID → Android**
+   - Package name: `com.infected.insta`
+   - SHA-1: `keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android -keypass android`
+4. Copy the Web Client ID
+5. In Supabase: **Authentication → Providers → Google → Enable** → paste Client ID + Secret
+6. Add redirect URI: `com.infected.insta://auth/callback`
+
+---
+
+## 6. GitHub OAuth Setup
+
+1. [github.com/settings/developers](https://github.com/settings/developers) → New OAuth App
+2. Homepage URL: `https://YOUR_PROJECT.supabase.co`
+3. Callback URL: `https://YOUR_PROJECT.supabase.co/auth/v1/callback`
+4. Copy Client ID + Secret
+5. In Supabase: **Authentication → Providers → GitHub → Enable** → paste credentials
+
+---
+
+## 7. TURN Servers (WebRTC calls)
+
+Pre-configured with Metered free-tier credentials:
+
+```
+Username: 1575304bdb73d5dd86d6f997
+Password: yszsvsDGGtvh3TfI
+```
+
+Free tier = 500 MB/month relay bandwidth. TURN is only used when direct P2P fails (`iceTransportPolicy: 'all'`, `iceCandidatePoolSize: 0`). Most calls on the same WiFi never consume quota.
+
+To upgrade: replace credentials in `lib/features/call/services/supabase_signaling_service.dart`.
+
+---
+
+## 8. Run the App
 
 ```bash
-# Debug build
-flutter build apk --debug
+# Debug (hot reload available)
+flutter run
 
-# Release build
+# Release APK
 flutter build apk --release
 
-# Output location: build/app/outputs/flutter-apk/
-```
+# Release App Bundle (for Play Store)
+flutter build appbundle --release
 
-### Build iOS (macOS)
+# Linux desktop
+flutter run -d linux
 
-```bash
-# For simulator
-flutter build ios --simulator --no-codesign
-
-# For device (requires Apple Developer account)
-flutter build ios --release
-```
-
-### Hot Reload
-
-During development, use hot reload for fast iterations:
-
-```
-# In terminal running flutter run
-# Press 'r' to hot reload
-# Press 'R' to restart
+# Web
+flutter run -d chrome
 ```
 
 ---
 
-## Optional: Google Sign-In Setup
+## 9. Storage Buckets
 
-If you want to enable Google OAuth:
+Create these buckets in **Supabase → Storage**:
 
-### Step 1: Create Google Cloud Project
-
-1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Create a new project
-3. Go to **APIs & Services** → **OAuth consent screen**
-4. Configure consent screen (External user type)
-5. Add scopes: `email`, `profile`
-
-### Step 2: Create OAuth Credentials
-
-1. Go to **APIs & Services** → **Credentials**
-2. Click **Create Credentials** → **OAuth client ID**
-3. Application type: **Android** or **iOS**
-4. For Android:
-   - Package name: `com.example.myapp`
-   - SHA-1: Get from `keytool` (see below)
-5. Copy Client ID
-
-### Get SHA-1 Fingerprint
-
-```bash
-# For Android debug key
-keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android -keypass android
-```
-
-### Step 3: Configure Supabase
-
-1. In Supabase Dashboard: **Authentication** → **Providers** → **Google**
-2. Enable Google provider
-3. Add your Client ID and Client Secret
-4. Add authorized redirect URI
-
-### Step 4: Update App Code
-
-No additional code needed - Google Sign-In is already integrated!
+| Bucket | Public | Purpose |
+|--------|--------|---------|
+| `posts` | ✅ | Post images |
+| `avatars` | ✅ | Profile avatars |
+| `stories` | ✅ | Story images (24hr) |
+| `messages` | ✅ | DM images + voice messages |
 
 ---
 
 ## Troubleshooting
 
-### Common Issues
-
-#### 1. " SUPABASE_URL not configured"
-
-**Solution**: Verify `AppConfig.supabaseUrl` is set correctly in `lib/core/config/app_config.dart`
-
-#### 2. "PlatformException: signed_in_with_fail"
-
-**Solution**: Check your Google OAuth credentials in both Google Cloud Console and Supabase
-
-#### 3. Build Errors
-
-```bash
-# Clean and rebuild
-flutter clean
-flutter pub get
-flutter build apk
+**`minSdkVersion` conflict**
+```
+flutter clean && flutter pub get
 ```
 
-#### 4. Emulator Not Found
+**WebRTC camera/mic not working on Android emulator**
+Use a physical device — emulators don't support WebRTC media.
 
-```bash
-# List available emulators
-flutter emulators
+**`SUPABASE_URL` error on start**
+The app validates the URL on init. Check `AppConfig.supabaseUrl` is set.
 
-# Launch specific emulator
-flutter emulators --launch <emulator-id>
-```
+**Build fails with NDK error**
+NDK `27.0.12077973` must be installed. In Android Studio: SDK Manager → SDK Tools → NDK → install that version.
 
-#### 5. Port Already in Use
-
-```bash
-# Kill process on port 5000 (Supabase local)
-# Windows
-netstat -ano | findstr :5000
-taskkill /PID <PID> /F
-
-# macOS/Linux
-lsof -i :5000
-kill -9 <PID>
-```
-
-### Getting Help
-
-- **Flutter Docs**: [docs.flutter.dev](https://docs.flutter.dev)
-- **Supabase Docs**: [supabase.com/docs](https://supabase.com/docs)
-- **GitHub Issues**: Report bugs at project issues page
-
----
-
-## Next Steps
-
-After getting the app running:
-
-1. [Supabase Setup](SUPABASE.md) - Configure database tables and policies
-2. [API Documentation](API.md) - Understand the app's data models
-3. [Contributing Guide](CONTRIBUTING.md) - Start contributing!
-
----
-
-## Environment Variables Reference
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `SUPABASE_URL` | Yes | Supabase project URL |
-| `SUPABASE_ANON_KEY` | Yes | Supabase anonymous key |
-| `GOOGLE_LOGO_URL` | No | Custom Google logo URL |
-| `PLACEHOLDER_AVATAR_URL` | No | Default avatar placeholder |
-| `PRAVATAR_URL` | No | Random avatar service URL |
+**Google Sign-In `PlatformException`**
+- SHA-1 fingerprint must match in Google Cloud Console
+- Package name must be `com.infected.insta` exactly

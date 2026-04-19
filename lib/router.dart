@@ -17,187 +17,127 @@ import 'package:infected_insta/features/call/screens/call_screen.dart';
 import 'package:infected_insta/features/call/screens/video_call_screen.dart';
 import 'package:infected_insta/features/call/models/call_model.dart';
 import 'package:infected_insta/features/stories/screens/story_screens.dart';
+import 'package:infected_insta/features/extra/screens/extra_screens.dart';
 import 'package:infected_insta/supabase/supabase_client.dart';
 
-// Router - Supabase auth check for redirect
 final router = GoRouter(
   initialLocation: '/',
   redirect: (context, state) {
-    // Supabase auth check - redirect unauthenticated users to login
     final isLoggedIn = supabase.auth.currentSession != null;
+    final loc = state.matchedLocation;
 
-    final isAuthRoute =
-        state.matchedLocation == '/auth' ||
-        state.matchedLocation == '/login' ||
-        state.matchedLocation == '/signup' ||
-        state.matchedLocation == '/forgot-password' ||
-        state.matchedLocation.startsWith('/onboarding');
+    final isAuthRoute = loc == '/auth' || loc == '/login' || loc == '/signup' ||
+        loc == '/forgot-password' || loc.startsWith('/onboarding');
 
-    // If user is not logged in and trying to access non-auth routes, redirect to login
-    if (!isLoggedIn && !isAuthRoute && state.matchedLocation != '/') {
-      return '/login';
-    }
+    // Splash screen always allowed
+    if (loc == '/') return null;
 
-    // If user is logged in and trying to access auth routes, redirect to home
-    if (isLoggedIn && isAuthRoute) {
-      return '/home';
-    }
-
+    if (!isLoggedIn && !isAuthRoute) return '/auth';
+    if (isLoggedIn && isAuthRoute) return '/home';
     return null;
   },
   routes: [
-    // Splash & Auth
-    GoRoute(path: '/', builder: (context, state) => const SplashScreen()),
-    GoRoute(path: '/auth', builder: (context, state) => const AuthScreen()),
-    GoRoute(path: '/login', builder: (context, state) => const AuthScreen()),
-    GoRoute(path: '/signup', builder: (context, state) => const AuthScreen()),
-    GoRoute(
-      path: '/forgot-password',
-      builder: (context, state) => const ForgotPasswordScreen(),
-    ),
-    GoRoute(
-      path: '/onboarding1',
-      builder: (context, state) => OnboardingScreen1(onNext: () {}),
-    ),
-    GoRoute(
-      path: '/onboarding2',
-      builder: (context, state) => OnboardingScreen2(onNext: () {}),
-    ),
-    GoRoute(
-      path: '/onboarding3',
-      builder: (context, state) => OnboardingScreen3(onNext: () {}),
-    ),
-    GoRoute(
-      path: '/onboarding',
-      builder: (context, state) => const OnboardingPageView(),
-    ),
+    // ── Splash & Auth ──────────────────────────────────────────────────────
+    GoRoute(path: '/', builder: (_, __) => const SplashScreen()),
+    GoRoute(path: '/auth', builder: (_, __) => const AuthScreen()),
+    GoRoute(path: '/login', builder: (_, __) => const AuthScreen()),
+    GoRoute(path: '/signup', builder: (_, __) => const AuthScreen()),
+    GoRoute(path: '/forgot-password', builder: (_, __) => const ForgotPasswordScreen()),
+    GoRoute(path: '/onboarding', builder: (_, __) => const OnboardingPageView()),
+    GoRoute(path: '/onboarding1', builder: (_, s) => OnboardingScreen1(onNext: () {})),
+    GoRoute(path: '/onboarding2', builder: (_, s) => OnboardingScreen2(onNext: () {})),
+    GoRoute(path: '/onboarding3', builder: (_, s) => OnboardingScreen3(onNext: () {})),
 
-    // Main App - Home
-    GoRoute(path: '/home', builder: (context, state) => const HomePage()),
+    // ── Main App ───────────────────────────────────────────────────────────
+    GoRoute(path: '/home', builder: (_, __) => const HomePage()),
 
-    // Post Details
+    // ── Post ──────────────────────────────────────────────────────────────
     GoRoute(
       path: '/post/:id',
-      builder: (context, state) {
-        final postId = state.pathParameters['id'] ?? '';
-        return PostDetailScreen(postId: postId);
-      },
+      builder: (_, state) => PostDetailScreen(postId: state.pathParameters['id'] ?? ''),
     ),
 
-    // Search/Explore
-    GoRoute(
-      path: '/explore',
-      builder: (context, state) => const ExploreScreen(),
-    ),
-    GoRoute(
-      path: '/trending',
-      builder: (context, state) => const TrendingTagsScreen(),
-    ),
+    // ── Explore / Search ──────────────────────────────────────────────────
+    GoRoute(path: '/explore', builder: (_, __) => const ExploreScreen()),
+    GoRoute(path: '/trending', builder: (_, __) => const TrendingTagsScreen()),
     GoRoute(
       path: '/search/:query',
-      builder: (context, state) {
-        final query = state.pathParameters['query'] ?? '';
-        return UserSearchResultsScreen(query: query);
+      builder: (_, state) =>
+          UserSearchResultsScreen(query: state.pathParameters['query'] ?? ''),
+    ),
+
+    // ── Create ────────────────────────────────────────────────────────────
+    GoRoute(path: '/create', builder: (_, __) => const CreatePostScreen()),
+    GoRoute(path: '/camera', builder: (_, __) => const CameraCaptureScreen()),
+    GoRoute(path: '/edit', builder: (_, __) => const EditCropScreen()),
+
+    // ── Reels ─────────────────────────────────────────────────────────────
+    GoRoute(path: '/reels', builder: (_, __) => const ReelsScreen()),
+
+    // ── Profile ───────────────────────────────────────────────────────────
+    GoRoute(path: '/profile', builder: (_, __) => const ProfileScreen()),
+    GoRoute(path: '/profile/edit', builder: (_, __) => const EditProfileScreen()),
+    GoRoute(
+      path: '/profile/:username',
+      builder: (_, state) {
+        final username = state.pathParameters['username'] ?? '';
+        return ProfileScreen(userId: username);
       },
     ),
+    GoRoute(path: '/archive', builder: (_, __) => const ArchiveViewScreen()),
+    GoRoute(path: '/saved', builder: (_, __) => const SavedPostsScreen()),
+    GoRoute(path: '/tagged', builder: (_, __) => const TaggedPostsScreen()),
+    GoRoute(path: '/highlights', builder: (_, __) => const StoryHighlightsScreen()),
+    GoRoute(path: '/settings', builder: (_, __) => const SettingsScreen()),
 
-    // Create Post
+    // ── Followers / Following ──────────────────────────────────────────────
     GoRoute(
-      path: '/create',
-      builder: (context, state) => const CreatePostScreen(),
+      path: '/followers/:userId',
+      builder: (_, state) => FollowListScreen(
+        userId: state.pathParameters['userId'] ?? '',
+        type: 'followers',
+        username: state.uri.queryParameters['username'] ?? '',
+      ),
     ),
     GoRoute(
-      path: '/camera',
-      builder: (context, state) => const CameraCaptureScreen(),
-    ),
-    GoRoute(path: '/edit', builder: (context, state) => const EditCropScreen()),
-
-    // Reels
-    GoRoute(path: '/reels', builder: (context, state) => const ReelsScreen()),
-
-    // Profile
-    GoRoute(
-      path: '/profile',
-      builder: (context, state) => const ProfileScreen(),
-    ),
-    GoRoute(
-      path: '/profile/edit',
-      builder: (context, state) => const EditProfileScreen(),
-    ),
-    GoRoute(
-      path: '/archive',
-      builder: (context, state) => const ArchiveViewScreen(),
-    ),
-    GoRoute(
-      path: '/saved',
-      builder: (context, state) => const SavedPostsScreen(),
-    ),
-    GoRoute(
-      path: '/tagged',
-      builder: (context, state) => const TaggedPostsScreen(),
-    ),
-    GoRoute(
-      path: '/highlights',
-      builder: (context, state) => const StoryHighlightsScreen(),
-    ),
-    GoRoute(
-      path: '/settings',
-      builder: (context, state) => const SettingsScreen(),
+      path: '/following/:userId',
+      builder: (_, state) => FollowListScreen(
+        userId: state.pathParameters['userId'] ?? '',
+        type: 'following',
+        username: state.uri.queryParameters['username'] ?? '',
+      ),
     ),
 
-    // Messages
-    GoRoute(
-      path: '/messages',
-      builder: (context, state) => const MessagesInboxScreen(),
-    ),
+    // ── Messages ──────────────────────────────────────────────────────────
+    GoRoute(path: '/messages', builder: (_, __) => const MessagesInboxScreen()),
     GoRoute(
       path: '/chat/:id',
-      builder: (context, state) {
-        final conversationId = state.pathParameters['id'] ?? '';
-        // For demo, use a default username
-        return ConversationChatScreen(
-          conversationId: conversationId,
-          username: 'User',
-        );
-      },
+      builder: (_, state) => ConversationChatScreen(
+        conversationId: state.pathParameters['id'] ?? '',
+        username: state.uri.queryParameters['username'] ?? 'User',
+      ),
     ),
-    GoRoute(
-      path: '/new-message',
-      builder: (context, state) => const NewMessageScreen(),
-    ),
-    GoRoute(
-      path: '/message-requests',
-      builder: (context, state) => const MessageRequestsScreen(),
-    ),
+    GoRoute(path: '/new-message', builder: (_, __) => const NewMessageScreen()),
+    GoRoute(path: '/message-requests', builder: (_, __) => const MessageRequestsScreen()),
 
-    // Notifications
-    GoRoute(
-      path: '/notifications',
-      builder: (context, state) => const ActivityFeedScreen(),
-    ),
-    GoRoute(
-      path: '/follow-requests',
-      builder: (context, state) => const FollowRequestsScreen(),
-    ),
+    // ── Notifications ─────────────────────────────────────────────────────
+    GoRoute(path: '/notifications', builder: (_, __) => const ActivityFeedScreen()),
+    GoRoute(path: '/follow-requests', builder: (_, __) => const FollowRequestsScreen()),
     GoRoute(
       path: '/likes/:postId',
-      builder: (context, state) {
-        final postId = state.pathParameters['postId'] ?? '';
-        return LikesCommentsScreen(type: 'likes', postId: postId);
-      },
+      builder: (_, state) =>
+          LikesCommentsScreen(type: 'likes', postId: state.pathParameters['postId'] ?? ''),
     ),
     GoRoute(
       path: '/comments/:postId',
-      builder: (context, state) {
-        final postId = state.pathParameters['postId'] ?? '';
-        return LikesCommentsScreen(type: 'comments', postId: postId);
-      },
+      builder: (_, state) =>
+          LikesCommentsScreen(type: 'comments', postId: state.pathParameters['postId'] ?? ''),
     ),
 
-    // Call routes
+    // ── Calls ─────────────────────────────────────────────────────────────
     GoRoute(
       path: '/call',
-      builder: (context, state) {
+      builder: (_, state) {
         final extra = state.extra as Map<String, dynamic>?;
         return CallScreen(
           calleeId: extra?['calleeId'] as String?,
@@ -207,33 +147,22 @@ final router = GoRouter(
         );
       },
     ),
-    GoRoute(
-      path: '/video-call',
-      builder: (context, state) => const VideoCallScreen(),
-    ),
+    GoRoute(path: '/video-call', builder: (_, __) => const VideoCallScreen()),
 
-    // Stories
+    // ── Stories ───────────────────────────────────────────────────────────
     GoRoute(
       path: '/story/:userId',
-      builder: (context, state) {
-        final userId = state.pathParameters['userId'] ?? '';
-        final extra = state.extra as Map<String, dynamic>?;
+      builder: (_, state) {
+        final extra = state.extra as Map<String, dynamic>? ?? {};
         return StoryViewerScreen(
-          userId: userId,
-          username: extra?['username'] as String? ?? 'User',
-          userAvatar: extra?['avatar'] as String?,
-          storyImages:
-              (extra?['images'] as List<dynamic>?)?.cast<String>() ?? [],
+          userId: state.pathParameters['userId'] ?? '',
+          username: extra['username'] as String? ?? 'User',
+          userAvatar: extra['avatar'] as String?,
+          storyImages: (extra['images'] as List<dynamic>?)?.cast<String>() ?? [],
         );
       },
     ),
-    GoRoute(
-      path: '/story-create',
-      builder: (context, state) => const StoryCreateScreen(),
-    ),
-    GoRoute(
-      path: '/story-camera',
-      builder: (context, state) => const StoryCameraScreen(),
-    ),
+    GoRoute(path: '/story-create', builder: (_, __) => const StoryCreateScreen()),
+    GoRoute(path: '/story-camera', builder: (_, __) => const StoryCameraScreen()),
   ],
 );

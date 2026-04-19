@@ -1,520 +1,597 @@
-# Supabase Configuration Guide
+# Supabase Configuration
 
-This guide covers the complete Supabase backend setup for the InstaClone app, including database schema, authentication, storage, and real-time features.
+Complete SQL schema, RLS policies, Storage setup, and Realtime configuration.
 
-## Table of Contents
-
-1. [Database Schema](#database-schema)
-2. [Authentication](#authentication)
-3. [Row Level Security](#row-level-security)
-4. [Storage](#storage)
-5. [Real-time](#real-time)
-6. [Edge Functions (Optional)](#edge-functions-optional)
-7. [Supabase Client Code](#supabase-client-code)
+Run all SQL in **Supabase Dashboard → SQL Editor**.
 
 ---
 
 ## Database Schema
 
-Run these SQL statements in the Supabase SQL Editor to create the required tables.
-
-### Users Table
+### Core Tables
 
 ```sql
--- Create custom users table that extends Supabase auth.users
+-- ════════════════════════════════════════
+-- PROFILES (extends auth.users)
+-- ════════════════════════════════════════
 CREATE TABLE public.profiles (
-  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  username TEXT UNIQUE NOT NULL,
-  display_name TEXT,
-  avatar_url TEXT,
-  bio TEXT,
-  website TEXT,
-  is_private BOOLEAN DEFAULT false,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
+  id            UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  username      TEXT UNIQUE NOT NULL,
+  full_name     TEXT,
+  avatar_url    TEXT,
+  bio           TEXT DEFAULT '',
+  website       TEXT DEFAULT '',
+  is_private    BOOLEAN DEFAULT false,
+  created_at    TIMESTAMPTZ DEFAULT NOW(),
+  updated_at    TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Enable RLS
-ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
-
--- Create profile on user creation
+-- Auto-create profile on signup
 CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER AS $$
 BEGIN
-  INSERT INTO public.profiles (id, username, display_name, avatar_url)
+  INSERT INTO public.profiles (id, username, full_name, avatar_url)
   VALUES (
     NEW.id,
-    NEW.raw_user_meta_data->>'username',
+    COALESCE(NEW.raw_user_meta_data->>'username',
+             split_part(NEW.email, '@', 1)),
     NEW.raw_user_meta_data->>'full_name',
     NEW.raw_user_meta_data->>'avatar_url'
-  );
+  )
+  ON CONFLICT (id) DO NOTHING;
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
--- Trigger for new user
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
-```
 
-### Posts Table
-
-```sql
--- Posts table
-CREATE TABLE public.posts (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
-  caption TEXT,
-  image_url TEXT NOT NULL,
-  likes_count INTEGER DEFAULT 0,
-  comments_count INTEGER DEFAULT 0,
-  is_archived BOOLEAN DEFAULT false,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Enable RLS
-ALTER TABLE public.posts ENABLE ROW LEVEL SECURITY;
-```
-
-### Comments Table
-
-```sql
--- Comments table
-CREATE TABLE public.comments (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  post_id UUID REFERENCES public.posts(id) ON DELETE CASCADE NOT NULL,
-  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
-  content TEXT NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-ALTER TABLE public.comments ENABLE ROW LEVEL SECURITY;
-```
-
-### Likes Table
-
-```sql
--- Likes table
-CREATE TABLE public.likes (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
-  post_id UUID REFERENCES public.posts(id) ON DELETE CASCADE NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE(user_id, post_id)
-);
-
-ALTER TABLE public.likes ENABLE ROW LEVEL SECURITY;
-```
-
-### Follows Table
-
-```sql
--- Follows table
+-- ════════════════════════════════════════
+-- FOLLOWS
+-- ════════════════════════════════════════
 CREATE TABLE public.follows (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  follower_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
-  following_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  follower_id   UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+  following_id  UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+  created_at    TIMESTAMPTZ DEFAULT NOW(),
+  PRIMARY KEY (follower_id, following_id)
+);
+
+-- ════════════════════════════════════════
+-- FOLLOW REQUESTS (private accounts)
+-- ════════════════════════════════════════
+CREATE TABLE public.follow_requests (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  requester_id  UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+  target_id     UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+  status        TEXT DEFAULT 'pending' CHECK (status IN ('pending','accepted','rejected')),
+  created_at    TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (requester_id, target_id)
+);
+
+-- ════════════════════════════════════════
+-- BLOCKS
+-- ════════════════════════════════════════
+CREATE TABLE public.blocks (
+  blocker_id    UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+  blocked_id    UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+  created_at    TIMESTAMPTZ DEFAULT NOW(),
+  PRIMARY KEY (blocker_id, blocked_id)
+);
+
+-- ════════════════════════════════════════
+-- POSTS
+-- ════════════════════════════════════════
+CREATE TABLE public.posts (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id       UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  image_url     TEXT NOT NULL,
+  caption       TEXT DEFAULT '',
+  location      TEXT DEFAULT '',
+  is_archived   BOOLEAN DEFAULT false,
+  created_at    TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ════════════════════════════════════════
+-- POST LIKES
+-- ════════════════════════════════════════
+CREATE TABLE public.post_likes (
+  post_id    UUID REFERENCES public.posts(id) ON DELETE CASCADE,
+  user_id    UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
   created_at TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE(follower_id, following_id)
+  PRIMARY KEY (post_id, user_id)
 );
 
-ALTER TABLE public.follows ENABLE ROW LEVEL SECURITY;
-```
+-- ════════════════════════════════════════
+-- SAVED POSTS
+-- ════════════════════════════════════════
+CREATE TABLE public.saved_posts (
+  post_id    UUID REFERENCES public.posts(id) ON DELETE CASCADE,
+  user_id    UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  PRIMARY KEY (post_id, user_id)
+);
 
-### Messages Table
+-- ════════════════════════════════════════
+-- POST TAGS
+-- ════════════════════════════════════════
+CREATE TABLE public.post_tags (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  post_id         UUID REFERENCES public.posts(id) ON DELETE CASCADE,
+  tagged_user_id  UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+  created_at      TIMESTAMPTZ DEFAULT NOW()
+);
 
-```sql
--- Conversations table
-CREATE TABLE public.conversations (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+-- ════════════════════════════════════════
+-- COMMENTS
+-- ════════════════════════════════════════
+CREATE TABLE public.comments (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  post_id    UUID REFERENCES public.posts(id) ON DELETE CASCADE NOT NULL,
+  user_id    UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  text       TEXT NOT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Messages table
-CREATE TABLE public.messages (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  conversation_id UUID REFERENCES public.conversations(id) ON DELETE CASCADE NOT NULL,
-  sender_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
-  content TEXT NOT NULL,
-  is_read BOOLEAN DEFAULT false,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-ALTER TABLE public.conversations ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
-```
-
-### Stories Table
-
-```sql
--- Stories table
+-- ════════════════════════════════════════
+-- STORIES
+-- ════════════════════════════════════════
 CREATE TABLE public.stories (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
-  image_url TEXT NOT NULL,
-  expires_at TIMESTAMPTZ NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT NOW()
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id    UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  image_url  TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  expires_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '24 hours')
 );
 
-ALTER TABLE public.stories ENABLE ROW LEVEL SECURITY;
-```
+-- ════════════════════════════════════════
+-- NOTES (top of DM inbox, 24hr)
+-- ════════════════════════════════════════
+CREATE TABLE public.notes (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id    UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  text       TEXT NOT NULL CHECK (char_length(text) <= 60),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  expires_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '24 hours')
+);
 
-### Notifications Table
+-- ════════════════════════════════════════
+-- CONVERSATIONS
+-- ════════════════════════════════════════
+CREATE TABLE public.conversations (
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  participant_ids  UUID[] NOT NULL,
+  last_message     TEXT DEFAULT '',
+  last_sender_id   UUID,
+  created_at       TIMESTAMPTZ DEFAULT NOW(),
+  updated_at       TIMESTAMPTZ DEFAULT NOW()
+);
 
-```sql
--- Notifications table
+-- Index for fast participant lookup
+CREATE INDEX idx_conversations_participants
+  ON public.conversations USING GIN (participant_ids);
+
+-- ════════════════════════════════════════
+-- MESSAGES
+-- ════════════════════════════════════════
+CREATE TABLE public.messages (
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  conversation_id  UUID REFERENCES public.conversations(id) ON DELETE CASCADE NOT NULL,
+  sender_id        UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  text             TEXT NOT NULL DEFAULT '',
+  is_read          BOOLEAN DEFAULT false,
+  is_deleted       BOOLEAN DEFAULT false,
+  reply_to_id      UUID REFERENCES public.messages(id) ON DELETE SET NULL,
+  reply_text       TEXT,
+  reply_sender     TEXT,
+  created_at       TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ════════════════════════════════════════
+-- MESSAGE REACTIONS
+-- ════════════════════════════════════════
+CREATE TABLE public.message_reactions (
+  message_id UUID REFERENCES public.messages(id) ON DELETE CASCADE,
+  user_id    UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+  emoji      TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  PRIMARY KEY (message_id, user_id)
+);
+
+-- ════════════════════════════════════════
+-- TYPING INDICATORS
+-- ════════════════════════════════════════
+CREATE TABLE public.typing_indicators (
+  conversation_id  UUID REFERENCES public.conversations(id) ON DELETE CASCADE,
+  user_id          UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+  is_typing        BOOLEAN DEFAULT false,
+  updated_at       TIMESTAMPTZ DEFAULT NOW(),
+  PRIMARY KEY (conversation_id, user_id)
+);
+
+-- ════════════════════════════════════════
+-- NOTIFICATIONS
+-- ════════════════════════════════════════
 CREATE TABLE public.notifications (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
-  type TEXT NOT NULL,
-  from_user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
-  post_id UUID REFERENCES public.posts(id) ON DELETE SET NULL,
-  is_read BOOLEAN DEFAULT false,
-  created_at TIMESTAMPTZ DEFAULT NOW()
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id         UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  actor_id        UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+  actor_username  TEXT,
+  actor_avatar    TEXT,
+  type            TEXT NOT NULL CHECK (type IN ('like','comment','follow','mention','follow_request')),
+  post_id         UUID REFERENCES public.posts(id) ON DELETE CASCADE,
+  post_image      TEXT,
+  comment_text    TEXT,
+  message         TEXT,
+  is_read         BOOLEAN DEFAULT false,
+  created_at      TIMESTAMPTZ DEFAULT NOW()
 );
 
-ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
+-- ════════════════════════════════════════
+-- CALLS
+-- ════════════════════════════════════════
+CREATE TABLE public.calls (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  caller_id     UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  callee_id     UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  caller_name   TEXT DEFAULT '',
+  caller_avatar TEXT DEFAULT '',
+  callee_name   TEXT DEFAULT '',
+  room_id       UUID DEFAULT gen_random_uuid() UNIQUE NOT NULL,
+  status        TEXT DEFAULT 'ringing' CHECK (status IN ('ringing','accepted','declined','ended','missed')),
+  call_type     TEXT DEFAULT 'audio' CHECK (call_type IN ('audio','video')),
+  started_at    TIMESTAMPTZ,
+  ended_at      TIMESTAMPTZ,
+  created_at    TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- WebRTC signaling
+CREATE TABLE public.call_signals (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  call_id     UUID REFERENCES public.calls(id) ON DELETE CASCADE NOT NULL,
+  sender_id   UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  signal_type TEXT NOT NULL,
+  signal_data JSONB,
+  created_at  TIMESTAMPTZ DEFAULT NOW()
+);
 ```
-
----
-
-## Authentication
-
-### Enable Providers
-
-1. Go to **Authentication** → **Providers**
-2. Enable **Email** (Email + Password)
-3. Enable **Google** (optional)
-
-### Email Configuration
-
-For production, configure email in **Authentication** → **Email**:
-
-- **Confirm email**: Enable for email verification
-- **Password reset**: Enable for forgot password flow
-- **Secure password**: Set minimum requirements (8 characters recommended)
-
-### Google OAuth Setup
-
-1. Go to **Authentication** → **Providers** → **Google**
-2. Enable the provider
-3. Enter your Google Cloud OAuth credentials:
-   - Client ID
-   - Client Secret
-4. Add redirect URI: `https://your-project.supabase.co/auth/v1/callback`
 
 ---
 
 ## Row Level Security (RLS)
 
-### Profiles Policy
+Enable RLS and add policies for each table:
 
 ```sql
--- Users can read all public profiles
-CREATE POLICY "Public profiles are viewable by everyone"
-ON public.profiles FOR SELECT
-USING (is_private = false);
+-- ── Profiles ──────────────────────────────────────────────────────────────
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
--- Users can update their own profile
+CREATE POLICY "Profiles are viewable by everyone"
+  ON public.profiles FOR SELECT USING (true);
+
 CREATE POLICY "Users can update own profile"
-ON public.profiles FOR UPDATE
-USING (auth.uid() = id);
-```
+  ON public.profiles FOR UPDATE USING (auth.uid() = id);
 
-### Posts Policy
+-- ── Posts ──────────────────────────────────────────────────────────────────
+ALTER TABLE public.posts ENABLE ROW LEVEL SECURITY;
 
-```sql
--- Anyone can view posts
-CREATE POLICY "Posts are public"
-ON public.posts FOR SELECT
-USING (true);
+CREATE POLICY "Posts are viewable by everyone"
+  ON public.posts FOR SELECT USING (true);
 
--- Users can create posts
-CREATE POLICY "Users can create posts"
-ON public.posts FOR INSERT
-WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can insert own posts"
+  ON public.posts FOR INSERT WITH CHECK (auth.uid() = user_id);
 
--- Users can update own posts
 CREATE POLICY "Users can update own posts"
-ON public.posts FOR UPDATE
-USING (auth.uid() = user_id);
+  ON public.posts FOR UPDATE USING (auth.uid() = user_id);
 
--- Users can delete own posts
 CREATE POLICY "Users can delete own posts"
-ON public.posts FOR DELETE
-USING (auth.uid() = user_id);
-```
+  ON public.posts FOR DELETE USING (auth.uid() = user_id);
 
-### Follows Policy
+-- ── Post Likes ────────────────────────────────────────────────────────────
+ALTER TABLE public.post_likes ENABLE ROW LEVEL SECURITY;
 
-```sql
--- Anyone can view follows
-CREATE POLICY "Follows are public"
-ON public.follows FOR SELECT
-USING (true);
+CREATE POLICY "Likes viewable by everyone"
+  ON public.post_likes FOR SELECT USING (true);
 
--- Users can follow others
+CREATE POLICY "Users can like posts"
+  ON public.post_likes FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can unlike posts"
+  ON public.post_likes FOR DELETE USING (auth.uid() = user_id);
+
+-- ── Saved Posts ───────────────────────────────────────────────────────────
+ALTER TABLE public.saved_posts ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view own saved posts"
+  ON public.saved_posts FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can save posts"
+  ON public.saved_posts FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can unsave posts"
+  ON public.saved_posts FOR DELETE USING (auth.uid() = user_id);
+
+-- ── Comments ──────────────────────────────────────────────────────────────
+ALTER TABLE public.comments ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Comments viewable by everyone"
+  ON public.comments FOR SELECT USING (true);
+
+CREATE POLICY "Users can add comments"
+  ON public.comments FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own comments"
+  ON public.comments FOR DELETE USING (auth.uid() = user_id);
+
+-- ── Follows ───────────────────────────────────────────────────────────────
+ALTER TABLE public.follows ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Follows viewable by everyone"
+  ON public.follows FOR SELECT USING (true);
+
 CREATE POLICY "Users can follow"
-ON public.follows FOR INSERT
-WITH CHECK (auth.uid() = follower_id);
+  ON public.follows FOR INSERT WITH CHECK (auth.uid() = follower_id);
 
--- Users can unfollow
 CREATE POLICY "Users can unfollow"
-ON public.follows FOR DELETE
-USING (auth.uid() = follower_id);
-```
+  ON public.follows FOR DELETE USING (auth.uid() = follower_id);
 
-### Messages Policy
+-- ── Stories ───────────────────────────────────────────────────────────────
+ALTER TABLE public.stories ENABLE ROW LEVEL SECURITY;
 
-```sql
--- Users can only see their own conversations
-CREATE POLICY "Users see own conversations"
-ON public.conversations FOR SELECT
-USING (
-  id IN (
-    SELECT conversation_id FROM public.messages 
-    WHERE sender_id = auth.uid()
-  )
-);
+CREATE POLICY "Active stories viewable by everyone"
+  ON public.stories FOR SELECT
+  USING (expires_at > NOW());
 
--- Users can only see messages in their conversations
-CREATE POLICY "Users see own messages"
-ON public.messages FOR SELECT
-USING (
-  sender_id = auth.uid() OR 
-  conversation_id IN (
-    SELECT id FROM public.conversations WHERE true
-  )
-);
+CREATE POLICY "Users can create stories"
+  ON public.stories FOR INSERT WITH CHECK (auth.uid() = user_id);
 
--- Users can send messages
+CREATE POLICY "Users can delete own stories"
+  ON public.stories FOR DELETE USING (auth.uid() = user_id);
+
+-- ── Notes ─────────────────────────────────────────────────────────────────
+ALTER TABLE public.notes ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Active notes viewable by everyone"
+  ON public.notes FOR SELECT USING (expires_at > NOW());
+
+CREATE POLICY "Users can create notes"
+  ON public.notes FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own notes"
+  ON public.notes FOR DELETE USING (auth.uid() = user_id);
+
+-- ── Conversations ─────────────────────────────────────────────────────────
+ALTER TABLE public.conversations ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view their conversations"
+  ON public.conversations FOR SELECT
+  USING (auth.uid() = ANY(participant_ids));
+
+CREATE POLICY "Users can create conversations"
+  ON public.conversations FOR INSERT
+  WITH CHECK (auth.uid() = ANY(participant_ids));
+
+CREATE POLICY "Participants can update conversation"
+  ON public.conversations FOR UPDATE
+  USING (auth.uid() = ANY(participant_ids));
+
+-- ── Messages ──────────────────────────────────────────────────────────────
+ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Conversation participants can view messages"
+  ON public.messages FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.conversations c
+      WHERE c.id = conversation_id
+      AND auth.uid() = ANY(c.participant_ids)
+    )
+  );
+
 CREATE POLICY "Users can send messages"
-ON public.messages FOR INSERT
-WITH CHECK (auth.uid() = sender_id);
+  ON public.messages FOR INSERT
+  WITH CHECK (auth.uid() = sender_id);
+
+CREATE POLICY "Users can update own messages"
+  ON public.messages FOR UPDATE USING (auth.uid() = sender_id);
+
+-- ── Message Reactions ─────────────────────────────────────────────────────
+ALTER TABLE public.message_reactions ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Reactions viewable by conversation participants"
+  ON public.message_reactions FOR SELECT USING (true);
+
+CREATE POLICY "Users can react"
+  ON public.message_reactions FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can change own reaction"
+  ON public.message_reactions FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can remove own reaction"
+  ON public.message_reactions FOR DELETE USING (auth.uid() = user_id);
+
+-- ── Typing Indicators ─────────────────────────────────────────────────────
+ALTER TABLE public.typing_indicators ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Typing indicators viewable by conversation participants"
+  ON public.typing_indicators FOR ALL USING (true);
+
+-- ── Notifications ─────────────────────────────────────────────────────────
+ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view own notifications"
+  ON public.notifications FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "System can insert notifications"
+  ON public.notifications FOR INSERT WITH CHECK (true);
+
+CREATE POLICY "Users can update own notifications"
+  ON public.notifications FOR UPDATE USING (auth.uid() = user_id);
+
+-- ── Calls ─────────────────────────────────────────────────────────────────
+ALTER TABLE public.calls ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Call participants can view calls"
+  ON public.calls FOR SELECT
+  USING (auth.uid() = caller_id OR auth.uid() = callee_id);
+
+CREATE POLICY "Callers can create calls"
+  ON public.calls FOR INSERT WITH CHECK (auth.uid() = caller_id);
+
+CREATE POLICY "Participants can update call status"
+  ON public.calls FOR UPDATE
+  USING (auth.uid() = caller_id OR auth.uid() = callee_id);
+
+-- ── Blocks ────────────────────────────────────────────────────────────────
+ALTER TABLE public.blocks ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view own blocks"
+  ON public.blocks FOR SELECT USING (auth.uid() = blocker_id);
+
+CREATE POLICY "Users can block"
+  ON public.blocks FOR INSERT WITH CHECK (auth.uid() = blocker_id);
+
+CREATE POLICY "Users can unblock"
+  ON public.blocks FOR DELETE USING (auth.uid() = blocker_id);
 ```
 
 ---
 
-## Storage
+## Realtime
 
-### Create Storage Buckets
-
-Go to **Storage** → **New Bucket**:
-
-1. **posts** - For post images
-   - Public bucket: Yes
-   - File size limit: 10MB
-   - Allowed types: images, video
-
-2. **avatars** - For profile pictures
-   - Public bucket: Yes
-   - File size limit: 2MB
-   - Allowed types: images
-
-3. **stories** - For story images
-   - Public bucket: Yes
-   - File size limit: 10MB
-   - Allowed types: images
-
-### Storage Policies
+Enable Realtime for tables that need live updates:
 
 ```sql
--- Anyone can view images
-CREATE POLICY "Public access to posts"
-ON storage.objects FOR SELECT
-USING (bucket_id = 'posts');
-
-CREATE POLICY "Public access to avatars"
-ON storage.objects FOR SELECT
-USING (bucket_id = 'avatars');
-
-CREATE POLICY "Public access to stories"
-ON storage.objects FOR SELECT
-USING (bucket_id = 'stories');
-
--- Users can upload to their folder
-CREATE POLICY "Users upload posts"
-ON storage.objects FOR INSERT
-WITH CHECK (bucket_id = 'posts' AND auth.uid()::text = (storage.foldername(name))[1]);
-
-CREATE POLICY "Users upload avatars"
-ON storage.objects FOR INSERT
-WITH CHECK (bucket_id = 'avatars' AND auth.uid()::text = (storage.foldername(name))[1]);
-```
-
----
-
-## Real-time
-
-### Enable Realtime
-
-1. Go to **Database** → **Replication**
-2. Enable replication for tables:
-   - `messages`
-   - `notifications`
-   - `posts`
-
-### Realtime Configuration
-
-```sql
--- Enable realtime on messages
+-- Enable realtime publications
 ALTER PUBLICATION supabase_realtime ADD TABLE public.messages;
-
--- Enable realtime on notifications
 ALTER PUBLICATION supabase_realtime ADD TABLE public.notifications;
-
--- Enable realtime on posts
-ALTER PUBLICATION supabase_realtime ADD TABLE public.posts;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.typing_indicators;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.calls;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.call_signals;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.notes;
 ```
 
 ---
 
-## Edge Functions (Optional)
+## Storage Buckets
 
-For advanced features like push notifications, you can create Edge Functions.
+Create these in **Supabase → Storage → New Bucket**:
 
-### Example: Send Push Notification
+```sql
+-- Run in SQL editor to create buckets programmatically
+INSERT INTO storage.buckets (id, name, public)
+VALUES
+  ('posts',    'posts',    true),
+  ('avatars',  'avatars',  true),
+  ('stories',  'stories',  true),
+  ('messages', 'messages', true);
 
-```typescript
-// supabase/functions/send-notification/index.ts
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+-- Storage policies
+CREATE POLICY "Anyone can view post images"
+  ON storage.objects FOR SELECT USING (bucket_id = 'posts');
 
-serve(async (req) => {
-  const supabase = createClient(
-    Deno.env.get('SUPABASE_URL')!,
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-  )
+CREATE POLICY "Authenticated users can upload posts"
+  ON storage.objects FOR INSERT
+  WITH CHECK (bucket_id = 'posts' AND auth.role() = 'authenticated');
 
-  const { user_id, title, body } = await req.json()
+CREATE POLICY "Users can delete own post images"
+  ON storage.objects FOR DELETE
+  USING (bucket_id = 'posts' AND auth.uid()::text = (storage.foldername(name))[1]);
 
-  // Fetch user's expo push token from database
-  const { data: user } = await supabase
-    .from('profiles')
-    .select('push_token')
-    .eq('id', user_id)
-    .single()
+CREATE POLICY "Anyone can view avatars"
+  ON storage.objects FOR SELECT USING (bucket_id = 'avatars');
 
-  // Send push notification (implement your push service)
-  // ...
+CREATE POLICY "Authenticated users can upload avatars"
+  ON storage.objects FOR INSERT
+  WITH CHECK (bucket_id = 'avatars' AND auth.role() = 'authenticated');
 
-  return new Response(JSON.stringify({ success: true }), {
-    headers: { 'Content-Type': 'application/json' }
-  })
-})
+CREATE POLICY "Anyone can view stories"
+  ON storage.objects FOR SELECT USING (bucket_id = 'stories');
+
+CREATE POLICY "Authenticated users can upload stories"
+  ON storage.objects FOR INSERT
+  WITH CHECK (bucket_id = 'stories' AND auth.role() = 'authenticated');
+
+CREATE POLICY "Conversation participants can view DM media"
+  ON storage.objects FOR SELECT USING (bucket_id = 'messages');
+
+CREATE POLICY "Authenticated users can upload DM media"
+  ON storage.objects FOR INSERT
+  WITH CHECK (bucket_id = 'messages' AND auth.role() = 'authenticated');
 ```
 
 ---
 
-## Supabase Client Code
+## Automatic Notification Triggers (Optional)
 
-The app uses the Supabase Flutter SDK. Here's how it's configured:
+```sql
+-- Notify on like
+CREATE OR REPLACE FUNCTION notify_on_like()
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER AS $$
+DECLARE
+  post_owner UUID;
+  liker_username TEXT;
+  liker_avatar TEXT;
+BEGIN
+  SELECT user_id INTO post_owner FROM public.posts WHERE id = NEW.post_id;
+  SELECT username, avatar_url INTO liker_username, liker_avatar
+    FROM public.profiles WHERE id = NEW.user_id;
 
-```dart
-// lib/supabase/supabase_client.dart
-import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:infected_insta/core/config/app_config.dart';
+  IF post_owner != NEW.user_id THEN
+    INSERT INTO public.notifications (user_id, actor_id, actor_username, actor_avatar, type, post_id)
+    VALUES (post_owner, NEW.user_id, liker_username, liker_avatar, 'like', NEW.post_id);
+  END IF;
+  RETURN NEW;
+END;
+$$;
 
-class SupabaseConfig {
-  static Future<void> initialize() async {
-    if (!AppConfig.isValidUrl(AppConfig.supabaseUrl)) {
-      throw Exception('Invalid SUPABASE_URL');
-    }
-    
-    if (AppConfig.supabaseAnonKey.isEmpty) {
-      throw Exception('Invalid SUPABASE_ANON_KEY');
-    }
-    
-    await Supabase.initialize(
-      url: AppConfig.supabaseUrl,
-      anonKey: AppConfig.supabaseAnonKey,
-    );
-  }
-}
+CREATE TRIGGER on_post_like
+  AFTER INSERT ON public.post_likes
+  FOR EACH ROW EXECUTE FUNCTION notify_on_like();
 
-final supabase = Supabase.instance.client;
+-- Notify on follow
+CREATE OR REPLACE FUNCTION notify_on_follow()
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER AS $$
+DECLARE
+  follower_username TEXT;
+  follower_avatar TEXT;
+BEGIN
+  SELECT username, avatar_url INTO follower_username, follower_avatar
+    FROM public.profiles WHERE id = NEW.follower_id;
 
-// Auth helpers
-Stream<AuthState> get authStateChanges => supabase.auth.onAuthStateChange;
-Session? get currentSession => supabase.auth.currentSession;
-User? get currentUser => currentSession?.user;
+  INSERT INTO public.notifications (user_id, actor_id, actor_username, actor_avatar, type)
+  VALUES (NEW.following_id, NEW.follower_id, follower_username, follower_avatar, 'follow');
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER on_follow
+  AFTER INSERT ON public.follows
+  FOR EACH ROW EXECUTE FUNCTION notify_on_follow();
+
+-- Notify on comment
+CREATE OR REPLACE FUNCTION notify_on_comment()
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER AS $$
+DECLARE
+  post_owner UUID;
+  commenter_username TEXT;
+  commenter_avatar TEXT;
+BEGIN
+  SELECT user_id INTO post_owner FROM public.posts WHERE id = NEW.post_id;
+  SELECT username, avatar_url INTO commenter_username, commenter_avatar
+    FROM public.profiles WHERE id = NEW.user_id;
+
+  IF post_owner != NEW.user_id THEN
+    INSERT INTO public.notifications
+      (user_id, actor_id, actor_username, actor_avatar, type, post_id, comment_text)
+    VALUES (post_owner, NEW.user_id, commenter_username, commenter_avatar,
+            'comment', NEW.post_id, substring(NEW.text from 1 for 100));
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER on_comment
+  AFTER INSERT ON public.comments
+  FOR EACH ROW EXECUTE FUNCTION notify_on_comment();
 ```
-
-### Using Supabase in Code
-
-```dart
-// Fetch posts
-final posts = await supabase
-  .from('posts')
-  .select('*, profiles(username, avatar_url)')
-  .order('created_at', ascending: false);
-
-// Insert post
-await supabase.from('posts').insert({
-  'user_id': currentUser!.id,
-  'caption': 'My new post!',
-  'image_url': 'https://...',
-});
-
-// Real-time subscription
-supabase
-  .from('messages')
-  .stream(primaryKey: ['id'])
-  .eq('conversation_id', conversationId)
-  .listen((messages) {
-    // Handle new messages
-  });
-```
-
----
-
-## Database Migrations
-
-### Using Supabase CLI
-
-```bash
-# Login
-supabase login
-
-# Link to project
-supabase link --project-ref YOUR_PROJECT_REF
-
-# Push schema changes
-supabase db push
-
-# Pull existing schema
-supabase db pull
-
-# Open SQL editor
-supabase projects api
-```
-
----
-
-## Troubleshooting
-
-### Common Issues
-
-1. **RLS Policy Error**: "row-level security policy"
-   - Check that policies are created for all tables
-   - Verify you're authenticated
-
-2. **Storage Upload Failed**: "Object not found"
-   - Check bucket policies
-   - Verify file path format
-
-3. **Realtime Not Working**: "channel not found"
-   - Enable replication on tables
-   - Check Supabase project status
-
-4. **Auth Errors**: "Invalid login credentials"
-   - Verify email/password
-   - Check auth provider settings
-
----
-
-## Next Steps
-
-- [API Documentation](API.md) - Complete API reference
-- [Contributing Guide](CONTRIBUTING.md) - Development workflow

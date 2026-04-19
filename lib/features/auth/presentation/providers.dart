@@ -4,15 +4,16 @@ import 'package:infected_insta/features/auth/data/auth_repository.dart';
 import 'package:infected_insta/supabase/supabase_client.dart';
 
 /// Auth repository provider
-/// 
-/// Provides the AuthRepository instance for authentication operations
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
   return AuthRepository();
 });
 
-/// Auth state changes provider
-/// 
-/// This stream provides updates when authentication state changes
+/// Stream of auth state changes
 final authStateChangesProvider = StreamProvider<AuthState>((ref) {
   return supabase.auth.onAuthStateChange;
+});
+
+/// Current user (nullable)
+final currentUserProvider = Provider<User?>((ref) {
+  return supabase.auth.currentUser;
 });

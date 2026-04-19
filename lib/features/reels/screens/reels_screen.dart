@@ -1,11 +1,20 @@
-
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:video_player/video_player.dart';
 
 import 'package:infected_insta/core/theme/instagram_theme.dart';
-import '../providers/reels_provider.dart';
-import '../../feed/models/post_model.dart';
+import 'package:infected_insta/core/widgets/rich_caption.dart';
+import 'package:infected_insta/features/feed/screens/post_screens.dart';
+import 'package:infected_insta/core/widgets/shimmer.dart';
+import 'package:infected_insta/features/feed/models/post_model.dart';
+import 'package:infected_insta/features/reels/providers/reels_provider.dart';
+import 'package:infected_insta/data/repositories/post_repository.dart';
+import 'package:infected_insta/data/repositories/user_repository.dart';
+import 'package:infected_insta/supabase/supabase_client.dart';
 
 class ReelsScreen extends ConsumerWidget {
   const ReelsScreen({super.key});
@@ -13,310 +22,270 @@ class ReelsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final reels = ref.watch(reelsProvider);
-
     return Scaffold(
       extendBodyBehindAppBar: true,
+      backgroundColor: Colors.black,
       appBar: AppBar(
-        title: const Text('Reels', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
         backgroundColor: Colors.transparent,
         elevation: 0,
+        title: const Text('Reels',
+            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
         actions: [
           IconButton(
-            onPressed: () {},
             icon: const Icon(Icons.camera_alt_outlined, color: Colors.white),
+            onPressed: () => context.push('/story-camera'),
           ),
         ],
       ),
       body: reels.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, stackTrace) => Center(child: Text('Error: $error', style: const TextStyle(color: Colors.white))),
-        data: (posts) {
-          return PageView.builder(
-            scrollDirection: Axis.vertical,
-            itemCount: posts.length,
-            itemBuilder: (context, index) {
-              final post = posts[index];
-              // For demonstration, we'll use a network image as a placeholder
-              // In a real app, this would be a ReelPlayer widget with a video controller.
-              return ReelPlayer(post: post);
-            },
-          );
-        },
+        loading: () => const FeedSkeleton(),
+        error: (e, _) => Center(child: Text('Error: $e',
+            style: const TextStyle(color: Colors.white))),
+        data: (posts) => posts.isEmpty
+            ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const FaIcon(FontAwesomeIcons.film, size: 48, color: Colors.white24),
+                  const SizedBox(height: 12),
+                  const Text('No reels yet', style: TextStyle(color: Colors.white54)),
+                ]))
+            : PageView.builder(
+                scrollDirection: Axis.vertical,
+                itemCount: posts.length,
+                itemBuilder: (_, i) => _ReelCard(post: posts[i]),
+              ),
       ),
     );
   }
 }
 
-class ReelPlayer extends StatefulWidget {
+class _ReelCard extends StatefulWidget {
   final Post post;
-  const ReelPlayer({super.key, required this.post});
+  const _ReelCard({required this.post});
 
   @override
-  State<ReelPlayer> createState() => _ReelPlayerState();
+  State<_ReelCard> createState() => _ReelCardState();
 }
 
-class _ReelPlayerState extends State<ReelPlayer> {
-  // VideoPlayerController? _controller;
+class _ReelCardState extends State<_ReelCard> {
+  VideoPlayerController? _videoCtrl;
+  bool _isLiked = false;
+  bool _isSaved = false;
+  bool _showHeart = false;
+  final _postRepo = PostRepository();
 
-  // In a real app, you would initialize a video controller like this:
-  // @override
-  // void initState() {
-  //   super.initState();
-  //   _controller = VideoPlayerController.network(widget.post.videoUrl)
-  //     ..initialize().then((_) {
-  //       setState(() {});
-  //       _controller?.play();
-  //       _controller?.setLooping(true);
-  //     });
-  // }
+  @override
+  void initState() {
+    super.initState();
+    _initVideo();
+    _checkLike();
+  }
 
-  // @override
-  // void dispose() {
-  //   _controller?.dispose();
-  //   super.dispose();
-  // }
+  Future<void> _initVideo() async {
+    // Try to load video if video_url is available
+    final videoUrl = widget.post.imageUrl; // In reels, imageUrl may be a video
+    if (videoUrl.endsWith('.mp4') || videoUrl.contains('video')) {
+      _videoCtrl = VideoPlayerController.networkUrl(Uri.parse(videoUrl))
+        ..initialize().then((_) {
+          if (mounted) {
+            setState(() {});
+            _videoCtrl!.play();
+            _videoCtrl!.setLooping(true);
+          }
+        });
+    }
+  }
+
+  Future<void> _checkLike() async {
+    final uid = supabase.auth.currentUser?.id;
+    if (uid == null) return;
+    final liked = await _postRepo.isPostLikedByUser(widget.post.id, uid);
+    final following = await _userRepo.isFollowing(uid, widget.post.id);
+    if (mounted) setState(() { _isLiked = liked; _isFollowing = following; });
+  }
+
+  @override
+  void dispose() {
+    _videoCtrl?.dispose();
+    super.dispose();
+  }
+
+  Future<void> _toggleLike() async {
+    final uid = supabase.auth.currentUser?.id;
+    if (uid == null) return;
+    HapticFeedback.lightImpact();
+    setState(() {
+      _isLiked = !_isLiked;
+      _showHeart = true;
+    });
+    Future.delayed(const Duration(milliseconds: 800),
+        () { if (mounted) setState(() => _showHeart = false); });
+    if (_isLiked) {
+      await _postRepo.likePost(widget.post.id, uid);
+    } else {
+      await _postRepo.unlikePost(widget.post.id, uid);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        // Placeholder for the video
-        // In a real app, this would be:
-        // _controller != null && _controller!.value.isInitialized
-        //     ? AspectRatio(
-        //         aspectRatio: _controller!.value.aspectRatio,
-        //         child: VideoPlayer(_controller!),
-        //       )
-        //     : const Center(child: CircularProgressIndicator()),
-        CachedNetworkImage(
-          imageUrl: widget.post.imageUrl,
-          fit: BoxFit.cover,
-          placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
-          errorWidget: (context, url, error) => const Center(child: Icon(Icons.error, color: Colors.red)),
-        ),
-        Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                Colors.black.withAlpha(76),
-                Colors.transparent,
-                Colors.black.withAlpha(127),
-              ],
-              stops: const [0.0, 0.4, 0.9],
-            ),
-          ),
-        ),
-        _buildOverlay(),
-      ],
-    );
-  }
-
-  Widget _buildOverlay() {
-    return Padding(
-      padding: const EdgeInsets.all(16.0).copyWith(bottom: 32.0),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.end,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              CircleAvatar(
-                backgroundImage: CachedNetworkImageProvider(widget.post.userAvatar),
-                radius: 16,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                widget.post.username,
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(width: 8),
-              OutlinedButton(
-                onPressed: () {},
-                style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: Colors.white),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+    return GestureDetector(
+      onDoubleTap: _toggleLike,
+      child: Stack(fit: StackFit.expand, children: [
+        // ── Video or image ──
+        _videoCtrl != null && _videoCtrl!.value.isInitialized
+            ? FittedBox(
+                fit: BoxFit.cover,
+                child: SizedBox(
+                  width: _videoCtrl!.value.size.width,
+                  height: _videoCtrl!.value.size.height,
+                  child: VideoPlayer(_videoCtrl!),
                 ),
-                child: const Text('Follow', style: TextStyle(color: Colors.white, fontSize: 12)),
               )
-            ],
+            : widget.post.imageUrl.isNotEmpty
+                ? CachedNetworkImage(
+                    imageUrl: widget.post.imageUrl,
+                    fit: BoxFit.cover,
+                    placeholder: (_, __) => const ShimmerBox(borderRadius: 0),
+                    errorWidget: (_, __, ___) => Container(color: const Color(0xFF1A1A2E)),
+                  )
+                : Container(color: const Color(0xFF1A1A2E)),
+
+        // ── Gradient overlays ──
+        Container(decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter, end: Alignment.bottomCenter,
+            colors: [Colors.transparent, Colors.transparent,
+                Colors.black87],
+            stops: [0, 0.5, 1],
           ),
-          const SizedBox(height: 8),
-          Text(
-            widget.post.caption,
-            style: const TextStyle(color: Colors.white),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              const Icon(Icons.music_note, color: Colors.white, size: 16),
-              const SizedBox(width: 4),
-              Text(
-                'Original Audio - ${widget.post.username}',
-                style: const TextStyle(color: Colors.white, fontSize: 12),
+        )),
+
+        // ── Double-tap heart flash ──
+        if (_showHeart)
+          const Center(child: Icon(Icons.favorite, color: Colors.white,
+              size: 100)),
+
+        // ── Right action bar ──
+        Positioned(
+          right: 12, bottom: 100,
+          child: Column(children: [
+            _ActionBtn(
+              icon: _isLiked
+                  ? FontAwesomeIcons.solidHeart : FontAwesomeIcons.heart,
+              label: _fmtCount(widget.post.likes + (_isLiked ? 1 : 0)),
+              color: _isLiked ? Colors.red : Colors.white,
+              onTap: _toggleLike,
+            ),
+            const SizedBox(height: 20),
+            _ActionBtn(
+              icon: FontAwesomeIcons.comment,
+              label: _fmtCount(widget.post.comments),
+              onTap: () => showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                builder: (_) => CommentsSheet(postId: widget.post.id),
               ),
-            ],
-          )
-        ],
-      ),
-    );
-  }
-}
-
-/// Audio/Effects Picker for Reels
-class AudioEffectsPicker extends StatelessWidget {
-  final Function(String) onAudioSelected;
-
-  AudioEffectsPicker({super.key, required this.onAudioSelected});
-
-  // No mock data - empty list for production
-  final List<Map<String, dynamic>> _audios = [];
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.6,
-      decoration: const BoxDecoration(
-        color: InstagramColors.darkBackground,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      child: Column(
-        children: [
-          // Handle
-          Container(
-            margin: const EdgeInsets.only(top: 12),
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-              color: InstagramColors.darkTextSecondary,
-              borderRadius: BorderRadius.circular(2),
             ),
-          ),
-          const SizedBox(height: 16),
-          // Title
-          const Text(
-            'Audio',
-            style: TextStyle(
-              color: InstagramColors.darkText,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 16),
-          // Audio list
-          Expanded(
-            child: ListView.builder(
-              itemCount: _audios.length,
-              itemBuilder: (context, index) {
-                final audio = _audios[index];
-                return ListTile(
-                  leading: Container(
-                    width: 50,
-                    height: 50,
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: InstagramColors.instagramGradient,
-                      ),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(Icons.music_note, color: Colors.white),
-                  ),
-                  title: Text(
-                    audio['title'],
-                    style: const TextStyle(
-                      color: InstagramColors.darkText,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  subtitle: Text(
-                    '${audio['artist']} • ${audio['uses']} uses',
-                    style: const TextStyle(color: InstagramColors.darkTextSecondary, fontSize: 12),
-                  ),
-                  trailing: Text(
-                    audio['duration'],
-                    style: const TextStyle(color: InstagramColors.darkTextSecondary),
-                  ),
-                  onTap: () => onAudioSelected(audio['title']),
-                );
+            const SizedBox(height: 20),
+            _ActionBtn(
+              icon: FontAwesomeIcons.paperPlane,
+              label: 'Share',
+              onTap: () {
+                Clipboard.setData(ClipboardData(text: 'https://infected.app/post/${widget.post.id}'));
               },
             ),
+            const SizedBox(height: 20),
+            _ActionBtn(
+              icon: _isSaved ? FontAwesomeIcons.solidBookmark : FontAwesomeIcons.bookmark,
+              label: '',
+              color: _isSaved ? const Color(0xFFC039FF) : Colors.white,
+              onTap: () async {
+                final uid = supabase.auth.currentUser?.id;
+                if (uid == null) return;
+                setState(() => _isSaved = !_isSaved);
+                if (_isSaved) {
+                  await _postRepo.savePost(widget.post.id, uid);
+                } else {
+                  await _postRepo.unsavePost(widget.post.id, uid);
+                }
+              },
+            ),
+          ]),
+        ),
+
+        // ── Bottom info ──
+        Positioned(
+          left: 16, right: 80, bottom: 60,
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('@${widget.post.username}',
+                style: const TextStyle(color: Colors.white,
+                    fontWeight: FontWeight.bold, fontSize: 15)),
+            if (widget.post.caption.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(widget.post.caption,
+                  style: const TextStyle(color: Colors.white70, fontSize: 13),
+                  maxLines: 2, overflow: TextOverflow.ellipsis),
+            ],
+            const SizedBox(height: 8),
+            Row(children: [
+              const FaIcon(FontAwesomeIcons.music, size: 12, color: Colors.white70),
+              const SizedBox(width: 6),
+              Text('Original Audio · ${widget.post.username}',
+                  style: const TextStyle(color: Colors.white70, fontSize: 12)),
+            ]),
+          ]),
+        ),
+
+        // ── Video progress ──
+        if (_videoCtrl != null && _videoCtrl!.value.isInitialized)
+          Positioned(
+            bottom: 0, left: 0, right: 0,
+            child: VideoProgressIndicator(_videoCtrl!,
+                allowScrubbing: true,
+                colors: VideoProgressColors(
+                  playedColor: const Color(0xFFC039FF),
+                  bufferedColor: Colors.white30,
+                  backgroundColor: Colors.white10,
+                )),
           ),
-        ],
-      ),
+      ]),
     );
+  }
+
+  String _fmtCount(int n) {
+    if (n >= 1000000) return '${(n / 1000000).toStringAsFixed(1)}M';
+    if (n >= 1000) return '${(n / 1000).toStringAsFixed(1)}K';
+    return n.toString();
   }
 }
 
-/// Share Reels Sheet
-class ShareReelSheet extends StatelessWidget {
-  final String reelId;
+class _ActionBtn extends StatelessWidget {
+  final FaIconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
 
-  const ShareReelSheet({super.key, required this.reelId});
+  const _ActionBtn({
+    required this.icon,
+    required this.label,
+    this.color = Colors.white,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: const BoxDecoration(
-        color: InstagramColors.darkBackground,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Handle
-          Container(
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-              color: InstagramColors.darkTextSecondary,
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          const SizedBox(height: 24),
-          // Title
-          const Text(
-            'Share Reel',
-            style: TextStyle(
-              color: InstagramColors.darkText,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 24),
-          // Share options
-          _buildOption(Icons.send, 'Send to...'),
-          _buildOption(Icons.link, 'Copy Link'),
-          _buildOption(Icons.share_outlined, 'Share to...'),
-          _buildOption(Icons.bookmark_outline, 'Save'),
-          const SizedBox(height: 16),
-          // Cancel
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: () => Navigator.pop(context),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: InstagramColors.darkSurface,
-                foregroundColor: InstagramColors.darkText,
-              ),
-              child: const Text('Cancel'),
-            ),
-          ),
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(children: [
+        FaIcon(icon, color: color, size: 28),
+        if (label.isNotEmpty) ...[
+          const SizedBox(height: 4),
+          Text(label,
+              style: const TextStyle(color: Colors.white,
+                  fontSize: 12, fontWeight: FontWeight.w600)),
         ],
-      ),
-    );
-  }
-
-  Widget _buildOption(IconData icon, String label) {
-    return ListTile(
-      leading: Icon(icon, color: InstagramColors.darkText),
-      title: Text(label, style: const TextStyle(color: InstagramColors.darkText)),
-      onTap: () {},
+      ]),
     );
   }
 }

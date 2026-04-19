@@ -1,26 +1,20 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:infected_insta/data/repositories/post_repository.dart';
+import 'package:infected_insta/features/feed/models/post_model.dart';
 
-import '../../feed/models/post_model.dart';
-
+/// Explore grid posts — used by ExploreScreen
 final searchProvider = FutureProvider<List<Post>>((ref) async {
-  final postRepo = PostRepository();
-  final result = await postRepo.getPosts();
-
+  final result = await PostRepository().getPosts();
   return result.fold(
-    (error) => [],
-    (posts) => posts
-        .map(
-          (post) => Post(
-            id: post['id'] ?? '',
-            username: post['username'] ?? 'Unknown',
-            userAvatar: post['profilePicture'] ?? '',
-            imageUrl: post['imageUrl'] ?? '',
-            caption: post['caption'] ?? '',
-            likes: post['likes'] ?? 0,
-            comments: post['commentsCount'] ?? 0,
-          ),
-        )
-        .toList(),
+    (_) => <Post>[],
+    (posts) => posts.map((p) => Post(
+      id: p['id']?.toString() ?? '',
+      username: p['username'] ?? 'unknown',
+      userAvatar: p['userAvatar'] ?? '',
+      imageUrl: p['imageUrl'] ?? '',
+      caption: p['caption'] ?? '',
+      likes: (p['likes'] as int?) ?? 0,
+      comments: (p['commentsCount'] as int?) ?? 0,
+    )).toList(),
   );
 });
