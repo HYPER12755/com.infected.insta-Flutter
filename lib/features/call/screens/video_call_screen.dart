@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -28,7 +27,7 @@ class _VideoCallScreenState extends ConsumerState<VideoCallScreen> {
   bool _speakerOn = true;
   bool _frontCamera = true;
   bool _showControls = true;
-  bool _pipMode = false; // local video draggable PiP
+  final bool _pipMode = false; // local video draggable PiP
 
   Timer? _durationTimer;
   Timer? _controlsTimer;
@@ -278,7 +277,7 @@ class _VideoCallScreenState extends ConsumerState<VideoCallScreen> {
                     decoration: const BoxDecoration(
                         color: Colors.red, shape: BoxShape.circle),
                     child: const Center(
-                      child: FaIcon(FontAwesomeIcons.phoneXmark,
+                      child: FaIcon(FontAwesomeIcons.phoneSlash,
                           size: 28, color: Colors.white)),
                   ),
                 ),

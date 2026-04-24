@@ -33,7 +33,7 @@ dependencies:
   flutter_webrtc: ^1.4.1
 
   # ── Voice messages ──────────────────────────────────────────────────────────
-  record: ^5.1.2
+  record: ^6.0.0
   just_audio: ^0.9.40
   path_provider: ^2.1.4
 

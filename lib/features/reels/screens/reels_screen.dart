@@ -6,8 +6,6 @@ import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:video_player/video_player.dart';
 
-import 'package:infected_insta/core/theme/instagram_theme.dart';
-import 'package:infected_insta/core/widgets/rich_caption.dart';
 import 'package:infected_insta/features/feed/screens/post_screens.dart';
 import 'package:infected_insta/core/widgets/shimmer.dart';
 import 'package:infected_insta/features/feed/models/post_model.dart';
@@ -70,8 +68,10 @@ class _ReelCardState extends State<_ReelCard> {
   VideoPlayerController? _videoCtrl;
   bool _isLiked = false;
   bool _isSaved = false;
+  bool _isFollowing = false;
   bool _showHeart = false;
   final _postRepo = PostRepository();
+  final _userRepo = UserRepository();
 
   @override
   void initState() {

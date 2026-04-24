@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -13,7 +12,6 @@ import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 import 'package:just_audio/just_audio.dart';
 
-import 'package:infected_insta/core/theme/instagram_theme.dart';
 import 'package:infected_insta/core/widgets/shimmer.dart';
 import 'package:infected_insta/data/repositories/message_repository.dart';
 import 'package:infected_insta/data/repositories/user_repository.dart';
@@ -571,9 +569,9 @@ class _ConvTile extends StatelessWidget {
     final prefix = isMe ? 'You: ' : '';
     if (text.startsWith('http') && (text.contains('.jpg') ||
         text.contains('.png') || text.contains('supabase'))) {
-      return '${prefix}📷 Photo';
+      return '$prefix📷 Photo';
     }
-    if (text.startsWith('AUDIO:')) return '${prefix}🎤 Voice message';
+    if (text.startsWith('AUDIO:')) return '$prefix🎤 Voice message';
     return '$prefix$text';
   }
 
@@ -718,8 +716,10 @@ class _ConversationChatScreenState extends State<ConversationChatScreen> {
           .uploadFile(file.path, path, bucket: 'messages');
       await _send(imageUrl: url);
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context)
+      if (mounted) {
+        ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text('Image failed: $e')));
+      }
     }
   }
 
@@ -1687,13 +1687,15 @@ class _NewMessageScreenState extends State<NewMessageScreen> {
     if (myId == null || otherId.isEmpty) return;
     final r = await _msgRepo.getOrCreateConversation(myId, otherId);
     r.fold((_) {}, (convId) {
-      if (mounted) Navigator.pushReplacement(context,
+      if (mounted) {
+        Navigator.pushReplacement(context,
           MaterialPageRoute(builder: (_) => ConversationChatScreen(
             conversationId: convId,
             username: user['username'] ?? 'User',
             userAvatar: user['avatar_url'] ?? '',
             otherUserId: otherId,
           )));
+      }
     });
   }
 

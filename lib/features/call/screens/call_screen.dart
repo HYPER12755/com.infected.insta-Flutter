@@ -5,7 +5,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:flutter_webrtc/flutter_webrtc.dart';
 
 import 'package:infected_insta/features/call/models/call_model.dart';
 import 'package:infected_insta/features/call/providers/call_provider.dart';
@@ -207,7 +206,7 @@ class _OutgoingCallScreenState extends ConsumerState<_OutgoingCallScreen>
             ),
             const SizedBox(width: 40),
             _CallBtn(
-              icon: FontAwesomeIcons.phoneXmark,
+              icon: FontAwesomeIcons.phoneSlash,
               label: 'End',
               bg: Colors.red,
               iconColor: Colors.white,
@@ -285,7 +284,7 @@ class _IncomingCallScreenState extends ConsumerState<_IncomingCallScreen>
             child: ImageFiltered(
               imageFilter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
               child: CachedNetworkImage(imageUrl: avatar, fit: BoxFit.cover,
-                  color: Colors.black60, colorBlendMode: BlendMode.darken),
+                  color: Colors.black54, colorBlendMode: BlendMode.darken),
             ),
           )
         else
@@ -370,7 +369,7 @@ class _IncomingCallScreenState extends ConsumerState<_IncomingCallScreen>
                   decoration: const BoxDecoration(
                       color: Colors.red, shape: BoxShape.circle),
                   child: const Center(
-                    child: FaIcon(FontAwesomeIcons.phoneXmark,
+                    child: FaIcon(FontAwesomeIcons.phoneSlash,
                         size: 28, color: Colors.white)),
                 ),
               ),

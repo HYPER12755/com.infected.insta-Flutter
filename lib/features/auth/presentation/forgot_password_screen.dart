@@ -88,8 +88,9 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
           decoration: const InputDecoration(labelText: 'Email address'),
           validator: (v) {
             if (v == null || v.isEmpty) return 'Enter your email';
-            if (!RegExp(r'^[\w.+-]+@[\w-]+\.[a-z]{2,}$').hasMatch(v))
+            if (!RegExp(r'^[\w.+-]+@[\w-]+\.[a-z]{2,}$').hasMatch(v)) {
               return 'Enter a valid email';
+            }
             return null;
           },
         ),

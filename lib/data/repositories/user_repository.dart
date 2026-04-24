@@ -48,8 +48,8 @@ class UserRepository extends BaseRepository {
           .select()
           .eq('follower_id', userId);
 
-      final enriched = {
-        ...response,
+      final Map<String, dynamic> enriched = {
+        ...response as Map<String, dynamic>,
         'followers_count': (followerRows as List).length,
         'following_count': (followingRows as List).length,
       };
@@ -204,7 +204,7 @@ class UserRepository extends BaseRepository {
           .eq('username', username)
           .maybeSingle();
       if (response == null) return const Failure(NotFoundException(message: 'User not found'));
-      return Success(response as Map<String, dynamic>);
+      return Success(response);
     } catch (e) {
       return Failure(DatabaseException(message: e.toString(), originalError: e));
     }

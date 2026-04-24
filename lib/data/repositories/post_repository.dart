@@ -346,7 +346,7 @@ class PostRepository extends BaseRepository {
               .lt('created_at', lastPost['created_at'])
               .order('created_at', ascending: false)
               .limit(limit);
-          return Success(response as List<Map<String, dynamic>>);
+          return Success(response);
         }
       }
       final response = await supabase
@@ -354,7 +354,7 @@ class PostRepository extends BaseRepository {
           .select()
           .order('created_at', ascending: false)
           .limit(limit);
-      return Success(response as List<Map<String, dynamic>>);
+      return Success(response);
     } catch (e) {
       return Failure(DatabaseException(
         message: 'Failed to get posts: ${e.toString()}',
@@ -362,3 +362,4 @@ class PostRepository extends BaseRepository {
       ));
     }
   }
+}

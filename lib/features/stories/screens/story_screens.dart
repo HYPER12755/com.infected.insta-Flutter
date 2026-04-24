@@ -11,7 +11,6 @@ import 'package:uuid/uuid.dart';
 import 'package:infected_insta/features/create_post/providers/storage_provider.dart';
 import 'package:infected_insta/data/repositories/message_repository.dart';
 import 'package:infected_insta/supabase/supabase_client.dart';
-import 'package:infected_insta/data/repositories/user_repository.dart';
 
 // ─── Story Viewer ─────────────────────────────────────────────────────────────
 class StoryViewerScreen extends StatefulWidget {
@@ -90,7 +89,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
 
   void _resume() {
     if (widget.storyImages.isEmpty) {
-      _fetchStories();
+      return; // No stories to display
     } else {
       _loadedImages = widget.storyImages;
       _progressCtrl.forward();
@@ -132,10 +131,13 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
                 if (uid == null) return;
                 final repo = MessageRepository();
                 final convResult = await repo.getOrCreateConversation(uid, widget.userId);
-                convResult.fold((_) {}, (convId) async {
-                  await repo.sendMessage(convId, {'text': '↩ ${widget.username}'s story: $text'});
-                });
-              } catch (_) {}
+                convResult.fold(
+                  (err) {},
+                  (convId) async {
+                    await repo.sendMessage(convId, {'text': "↩ ${widget.username}'s story: $text"});
+                  },
+                );
+              } catch (e) { }
             },
           ),
         ]),
@@ -155,7 +157,11 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
         Positioned.fill(
           child: GestureDetector(
             onTapDown: (d) {
-              if (d.globalPosition.dx < w / 2) _prev() ; else _next();
+              if (d.globalPosition.dx < w / 2) {
+                _prev() ;
+              } else {
+                _next();
+              }
             },
             onLongPressStart: (_) => _pause(),
             onLongPressEnd: (_) => _resume(),

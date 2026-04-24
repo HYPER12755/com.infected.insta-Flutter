@@ -64,10 +64,12 @@ class _SignupPageState extends ConsumerState<SignupPage> {
   }
 
   String _friendlyError(String e) {
-    if (e.contains('already registered') || e.contains('already exists'))
+    if (e.contains('already registered') || e.contains('already exists')) {
       return 'This email is already registered. Try logging in.';
-    if (e.contains('weak_password') || e.contains('password'))
+    }
+    if (e.contains('weak_password') || e.contains('password')) {
       return 'Password too weak. Use at least 8 characters with letters and numbers.';
+    }
     if (e.contains('invalid')) return 'Please enter a valid email address.';
     return 'Sign up failed. Please try again.';
   }
@@ -106,8 +108,9 @@ class _SignupPageState extends ConsumerState<SignupPage> {
             validator: (v) {
               if (v == null || v.trim().isEmpty) return 'Username is required';
               if (v.length < 3) return 'At least 3 characters';
-              if (!RegExp(r'^[a-zA-Z0-9._]+$').hasMatch(v))
+              if (!RegExp(r'^[a-zA-Z0-9._]+$').hasMatch(v)) {
                 return 'Only letters, numbers, . and _';
+              }
               return null;
             },
             enabled: !_isLoading,
@@ -121,8 +124,9 @@ class _SignupPageState extends ConsumerState<SignupPage> {
                 prefixIcon: Icon(Icons.email_outlined)),
             validator: (v) {
               if (v == null || v.isEmpty) return 'Email is required';
-              if (!RegExp(r'^[\w.+-]+@[\w-]+\.[a-z]{2,}$').hasMatch(v))
+              if (!RegExp(r'^[\w.+-]+@[\w-]+\.[a-z]{2,}$').hasMatch(v)) {
                 return 'Enter a valid email';
+              }
               return null;
             },
             enabled: !_isLoading,

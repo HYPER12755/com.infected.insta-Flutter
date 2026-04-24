@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:ui';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:infected_insta/features/auth/presentation/login_page.dart';
 import 'package:infected_insta/features/auth/presentation/signup_page.dart';
 

@@ -30,7 +30,7 @@ class MessageRepository extends BaseRepository {
                 .select('id, username, avatar_url, full_name')
                 .eq('id', otherId)
                 .maybeSingle();
-            if (p != null) profile = p as Map<String, dynamic>;
+            if (p != null) profile = p;
           } catch (_) {}
         }
 

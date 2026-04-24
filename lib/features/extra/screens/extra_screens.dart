@@ -4,8 +4,6 @@ import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 import 'package:infected_insta/core/widgets/shimmer.dart';
-import 'package:infected_insta/data/repositories/post_repository.dart';
-import 'package:infected_insta/data/repositories/user_repository.dart';
 import 'package:infected_insta/supabase/supabase_client.dart';
 
 // ─── Saved Posts Screen ───────────────────────────────────────────────────────

@@ -52,7 +52,7 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
     final currentUserId = _userRepo.getCurrentUserId();
     if (currentUserId != null && _targetUserId != null && currentUserId != _targetUserId) {
       try {
-        isFollowing = await _userRepo.isFollowing(currentUserId, _targetUserId!);
+        isFollowing = await _userRepo.isFollowing(currentUserId, _targetUserId);
       } catch (_) {}
     }
 

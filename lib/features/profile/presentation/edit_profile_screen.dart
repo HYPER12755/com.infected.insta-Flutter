@@ -155,8 +155,9 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
               validator: (v) {
                 if (v == null || v.isEmpty) return 'Username is required';
                 if (v.length < 3) return 'At least 3 characters';
-                if (!RegExp(r'^[a-zA-Z0-9._]+$').hasMatch(v))
+                if (!RegExp(r'^[a-zA-Z0-9._]+$').hasMatch(v)) {
                   return 'Only letters, numbers, . and _';
+                }
                 return null;
               },
             ),

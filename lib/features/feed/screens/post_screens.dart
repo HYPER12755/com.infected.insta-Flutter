@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,7 +8,6 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:infected_insta/core/theme/instagram_theme.dart';
 import 'package:infected_insta/core/widgets/shimmer.dart';
 import 'package:infected_insta/data/repositories/post_repository.dart';
-import 'package:infected_insta/data/repositories/user_repository.dart';
 import 'package:infected_insta/supabase/supabase_client.dart';
 import 'package:infected_insta/core/widgets/rich_caption.dart';
 
@@ -246,7 +244,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                 onTap: () => context.push('/likes/${widget.postId}'),
                 child: Align(
                   alignment: Alignment.centerLeft,
-                  child: Text(_fmtCount(likes) + ' likes',
+                  child: Text('${_fmtCount(likes)} likes',
                       style: const TextStyle(fontWeight: FontWeight.bold)),
                 ),
               ),

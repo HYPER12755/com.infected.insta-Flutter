@@ -29,7 +29,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
 
   List<Map<String, dynamic>> _posts = [];
   List<Map<String, dynamic>> _searchResults = [];
-  List<Map<String, dynamic>> _recentSearches = [];
+  final List<Map<String, dynamic>> _recentSearches = [];
 
   Timer? _debounce;
 

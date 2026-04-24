@@ -9,7 +9,6 @@ import 'package:uuid/uuid.dart';
 
 import 'package:infected_insta/core/theme/instagram_theme.dart';
 import 'package:infected_insta/data/repositories/post_repository.dart';
-import 'package:infected_insta/data/repositories/user_repository.dart';
 import 'package:infected_insta/features/create_post/providers/storage_provider.dart';
 import 'package:infected_insta/supabase/supabase_client.dart';
 

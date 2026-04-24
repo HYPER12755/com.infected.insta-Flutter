@@ -99,7 +99,7 @@ class AuthRepository {
           .select()
           .eq('id', userId)
           .maybeSingle();
-      return response as Map<String, dynamic>?;
+      return response;
     } catch (_) { return null; }
   }
 
